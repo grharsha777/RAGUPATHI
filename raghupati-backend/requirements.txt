@@ -1,0 +1,28 @@
+# RAGHUPATI backend — Python 3.11–3.13 required today: CrewAI/LangGraph publish wheels with Requires-Python <3.14.
+# Versions use lower bounds; pin in production lockfiles after `pip freeze`.
+crewai>=0.80.0
+langgraph>=0.2.0
+langchain-core>=0.3.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+python-dotenv>=1.0.0
+pydantic>=2.11.0
+pydantic-settings>=2.8.0
+python-jose[cryptography]>=3.4.0
+httpx>=0.28.0
+supabase>=2.15.0
+mem0ai>=0.1.90
+chromadb>=0.5.0
+tavily-python>=0.5.0
+PyGithub>=2.3.0
+slack-sdk>=3.34.0
+sendgrid>=6.11.0
+structlog>=25.2.0
+tenacity>=9.0.0
+pytest>=8.3.0
+pytest-asyncio>=0.26.0
+groq>=0.20.0
+mistralai>=1.7.0
+numpy>=2.0.0
+tree-sitter>=0.23.0
+ruff>=0.11.0
