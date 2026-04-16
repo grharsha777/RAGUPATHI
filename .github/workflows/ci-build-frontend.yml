@@ -1,0 +1,41 @@
+name: CI - Build Frontend
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ master ]
+
+jobs:
+  build-frontend:
+    name: Build frontend (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend deps
+        run: |
+          cd raghupati-frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd raghupati-frontend
+          npm run build
+
+      - name: List build output
+        run: |
+          echo "-- .next in frontend --"
+          ls -la raghupati-frontend/.next || true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: raghupati-frontend/.next
