@@ -4,5 +4,5 @@
     { "src": "raghupati-frontend/package.json", "use": "@vercel/next" }
   ],
   "routes": [],
-  "outputDirectory": "raghupati-frontend/.next"
+  "outputDirectory": ".next"
 }
