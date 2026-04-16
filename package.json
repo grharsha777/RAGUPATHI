@@ -2,7 +2,7 @@
   "name": "raghupati-monorepo",
   "private": true,
   "scripts": {
-    "build": "cd raghupati-frontend && npm run build",
+    "build": "cd raghupati-frontend && npm run build && cp -a .next ..",
     "start": "cd raghupati-frontend && npm run start"
   },
   "engines": {
