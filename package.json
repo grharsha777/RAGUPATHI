@@ -1,0 +1,11 @@
+{
+  "name": "raghupati-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "cd raghupati-frontend && npm run build",
+    "start": "cd raghupati-frontend && npm run start"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
