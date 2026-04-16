@@ -78,10 +78,14 @@ Required env vars for Google OAuth:
 - `AUTH_GOOGLE_ID` — Your Google OAuth Client ID (e.g., `83005262784-6obma0idmr4cea3jcg30a5ulv47i7iip.apps.googleusercontent.com`)
 - `AUTH_GOOGLE_SECRET` — Your Google OAuth Client Secret (keep private!)
 - `NEXTAUTH_URL` — Your app's public URL (e.g., `https://raghupathi-...vercel.app`)
-- `AUTH_OPERATOR_PASSPHRASE` — Optional operator access passphrase
+
+GitHub OAuth setup:
+- `AUTH_GITHUB_ID` — `Ov23liL6h69AskKDjlvw`
+- `AUTH_GITHUB_SECRET` — Your GitHub Client Secret (set in Vercel, do NOT commit)
+- Register your app: https://github.com/settings/developers → OAuth Apps → New OAuth App
+- Authorization callback URL: `https://<your-vercel-url>/api/auth/callback/github`
 
 Optional auth providers:
-- GitHub OAuth: `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
 - Credentials: `AUTH_OPERATOR_PASSPHRASE` (passphrase-based login)
 
 Deployment notes (Vercel)
