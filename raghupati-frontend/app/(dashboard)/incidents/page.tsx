@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { IncidentPreviewDrawer } from "@/components/incidents/incident-preview-drawer";
 import { IncidentTable } from "@/components/incidents/incident-table";
@@ -9,11 +10,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorStatePanel } from "@/components/shared/error-state-panel";
 import { useIncidentsQuery } from "@/lib/hooks/use-incidents";
 import type { Incident } from "@/lib/types/domain";
+import { supabase } from "@/lib/supabase/client";
 
 export default function IncidentsPage() {
+  const queryClient = useQueryClient();
   const incidents = useIncidentsQuery();
   const [preview, setPreview] = useState<Incident | null>(null);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, (payload) => {
+        // Invalidate and refetch immediately when Supabase detects a change
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
 
   return (
     <div className="space-y-6">

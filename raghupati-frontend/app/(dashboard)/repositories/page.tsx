@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { GitBranch, ShieldCheck } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +10,26 @@ import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, Ta
 import { ErrorStatePanel } from "@/components/shared/error-state-panel";
 import { LiveStatusBadge } from "@/components/shared/live-status-badge";
 import { useRepositoriesQuery } from "@/lib/hooks/use-support-queries";
+import { supabase } from "@/lib/supabase/client";
 
 export default function RepositoriesPage() {
+  const queryClient = useQueryClient();
   const repos = useRepositoriesQuery();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes-repos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'repositories' }, (payload) => {
+        // Invalidate and refetch immediately when Supabase detects a change
+        queryClient.invalidateQueries({ queryKey: ["repositories"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
 
   return (
     <div className="space-y-6">

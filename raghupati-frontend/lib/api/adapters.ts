@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiFetch } from "@/lib/api/client";
+import { supabase } from "@/lib/supabase/client";
 import {
   auditEventSchema,
   type AuditEvent,
@@ -18,8 +19,6 @@ import {
   systemHealthSchema,
 } from "@/lib/types/schemas";
 
-const isMockModeEnabled = (): boolean => process.env.NEXT_PUBLIC_USE_MOCKS === "1";
-
 const incidentListSchema = z.array(incidentSchema);
 
 export async function fetchHealth(): Promise<SystemHealth> {
@@ -31,21 +30,95 @@ export async function fetchAgentsStatus(): Promise<Record<string, unknown>> {
 }
 
 export async function fetchIncidents(): Promise<Incident[]> {
-  return apiFetch("/incidents", incidentListSchema);
+  const { data, error } = await supabase
+    .from('incidents')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) throw new Error(error.message);
+  
+  return data.map((item: any) => ({
+    id: item.id,
+    repoFullName: item.source || "Unknown",
+    title: item.title,
+    description: item.description,
+    severity: item.severity.toUpperCase(),
+    status: item.status.toUpperCase() === 'OPEN' ? 'IDLE' : 'COMPLETED',
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  })) as Incident[];
 }
 
 export async function fetchIncident(id: string): Promise<IncidentDetail> {
-  return apiFetch(`/incidents/${id}`, incidentDetailSchema);
+  const { data, error } = await supabase.from('incidents').select('*').eq('id', id).single();
+  
+  if (error) throw new Error(error.message);
+
+  return {
+    id: data.id,
+    repoFullName: data.source,
+    title: data.title,
+    description: data.description || "",
+    severity: data.severity.toUpperCase() as any,
+    status: data.status.toUpperCase() === 'OPEN' ? 'IDLE' : 'COMPLETED' as any,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    confidence: 0.9,
+    rootCause: "Unknown",
+    vulnerablePackages: [],
+    vulnerableFiles: [],
+    slackDelivered: false,
+    emailDelivered: false,
+    retryHistory: [],
+    timeline: [],
+    explainability: "",
+  } as unknown as IncidentDetail;
 }
 
 export async function fetchRepositories(): Promise<Repository[]> {
-  return apiFetch("/repositories", repositoryListSchema);
+  const { data, error } = await supabase.from('repositories').select('*');
+  if (error) throw new Error(error.message);
+
+  return data.map((item: any) => ({
+    id: item.id,
+    fullName: item.full_name,
+    defaultBranch: item.default_branch,
+    webhookStatus: item.webhook_status,
+    riskScore: item.risk_score,
+    openIssues: item.open_issues,
+    dependencyHealth: item.dependency_health,
+    ciHealth: item.ci_health,
+    branchProtection: item.branch_protection,
+    lastScanAt: item.updated_at,
+  })) as Repository[];
 }
 
 export async function fetchReports(): Promise<ReportArtifact[]> {
-  return apiFetch("/reports", reportListSchema);
+  const { data, error } = await supabase.from('reports').select('*');
+  if (error) throw new Error(error.message);
+
+  return data.map((item: any) => ({
+    id: item.id,
+    incidentId: item.id, // Placeholder mapping
+    kind: item.type,
+    title: item.title,
+    createdAt: item.created_at,
+    href: item.url,
+  })) as ReportArtifact[];
 }
 
 export async function fetchAudit(): Promise<AuditEvent[]> {
-  return apiFetch("/audit", z.array(auditEventSchema));
+  const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+
+  return data.map((item: any) => ({
+    id: item.id,
+    traceId: item.id,
+    incidentId: null,
+    timestamp: item.created_at,
+    actor: item.actor,
+    action: item.action,
+    resource: item.resource,
+    metadata: item.metadata,
+  })) as AuditEvent[];
 }
