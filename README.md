@@ -61,15 +61,35 @@ Local quickstart
     pytest -q
 
 Environment variables
-- Frontend common envs: `NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- Backend common envs: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY` (or other model keys), `SECRET_KEY`
-- Add .env.local files in the respective folders for local dev. Do NOT commit secrets.
+
+**Local dev (.env.local files):**
+- Frontend (.env.local in raghupati-frontend): `NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_OPERATOR_PASSPHRASE`
+- Backend (.env.local in raghupati-backend): `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`, `SECRET_KEY`
+- Never commit `.env.local` or secrets to the repo.
+
+**Vercel deployment environment variables:**
+To add secrets to Vercel without committing them:
+1. Open your Vercel project dashboard
+2. Go to Settings → Environment Variables
+3. Add each secret with its value, select which environments (Production/Preview/Development)
+4. Redeploy after adding/updating variables
+
+Required env vars for Google OAuth:
+- `AUTH_GOOGLE_ID` — Your Google OAuth Client ID (e.g., `83005262784-6obma0idmr4cea3jcg30a5ulv47i7iip.apps.googleusercontent.com`)
+- `AUTH_GOOGLE_SECRET` — Your Google OAuth Client Secret (keep private!)
+- `NEXTAUTH_URL` — Your app's public URL (e.g., `https://raghupathi-...vercel.app`)
+- `AUTH_OPERATOR_PASSPHRASE` — Optional operator access passphrase
+
+Optional auth providers:
+- GitHub OAuth: `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
+- Credentials: `AUTH_OPERATOR_PASSPHRASE` (passphrase-based login)
 
 Deployment notes (Vercel)
 - Node engine is pinned to 20.x via the root `package.json` to avoid automatic downgrades.
-- `vercel.json` is present and configured to use the Next.js builder on `raghupati-frontend/package.json`.
-- On Vercel, ensure project environment variables are set (Dashboard → Settings → Environment Variables).
+- Root build script (`npm run build`) runs the frontend build and copies `.next` to the deployment root.
+- On Vercel, ensure all environment variables are set (Dashboard → Settings → Environment Variables).
 - If builds fail on Vercel with memory or native module errors, enable build cache and increase build machine size if possible.
+- Middleware is disabled in the current setup; auth is handled client-side via next-auth.
 
 Roles & responsibilities (specific, actionable)
 
