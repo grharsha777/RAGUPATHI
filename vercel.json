@@ -3,5 +3,6 @@
   "builds": [
     { "src": "raghupati-frontend/package.json", "use": "@vercel/next" }
   ],
-  "routes": []
+  "routes": [],
+  "outputDirectory": "raghupati-frontend/.next"
 }
