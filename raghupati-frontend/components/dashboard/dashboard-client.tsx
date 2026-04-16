@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
 import {
@@ -30,15 +31,37 @@ import { LiveStatusBadge } from "@/components/shared/live-status-badge";
 import { SeverityBadge } from "@/components/shared/severity-badge";
 import { useHealthQuery } from "@/lib/hooks/use-health";
 import { useIncidentsQuery } from "@/lib/hooks/use-incidents";
+import { useRepositoriesQuery } from "@/lib/hooks/use-support-queries";
 import { cn } from "@/lib/utils/cn";
+import { supabase } from "@/lib/supabase/client";
 
 
 export function DashboardClient() {
+  const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
   const incidents = useIncidentsQuery();
+  const repos = useRepositoriesQuery();
   const health = useHealthQuery();
 
-  const rows = useMemo(() => incidents.data?.slice(0, 6) ?? [], [incidents.data]);
+  // Unified Realtime Subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'repositories' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["repositories"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const rows = incidents.data?.slice(0, 6) ?? [];
+  const topRepos = repos.data?.slice(0, 3) ?? [];
 
   return (
     <div className="space-y-6">
@@ -211,15 +234,23 @@ export function DashboardClient() {
             <CardDescription className="text-xs">Webhook health + dependency posture snapshot.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {["acme/platform", "acme/payments", "acme/identity"].map((repo) => (
-              <div key={repo} className="flex items-center justify-between rounded-md border border-border/70 bg-card/50 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{repo}</div>
-                  <div className="text-xs text-muted-foreground">main · webhook active</div>
+            {repos.isLoading ? (
+               Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-10 w-full" />)
+            ) : topRepos.length > 0 ? (
+              topRepos.map((repo) => (
+                <div key={repo.id} className="flex items-center justify-between rounded-md border border-border/70 bg-card/50 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{repo.fullName}</div>
+                    <div className="text-xs text-muted-foreground">{repo.defaultBranch} · {repo.webhookStatus}</div>
+                  </div>
+                  <LiveStatusBadge status={repo.webhookStatus === 'active' ? "healthy" : "degraded"} label="ingest" />
                 </div>
-                <LiveStatusBadge status="healthy" label="ingest" />
+              ))
+            ) : (
+              <div className="flex h-20 items-center justify-center rounded-md border border-dashed border-border/70 text-xs text-muted-foreground">
+                No monitored repositories found.
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       </div>

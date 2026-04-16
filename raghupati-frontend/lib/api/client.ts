@@ -13,10 +13,26 @@ export class ApiError extends Error {
 }
 
 function getBaseUrl(): string {
+  // 1. Explicitly check for browser-side injected public variable
   if (typeof window !== "undefined") {
-    return process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+    return process.env.NEXT_PUBLIC_API_BASE_URL || "";
   }
-  return process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+  // 2. Server-side logic (SSR/Server Actions)
+  // Favor private API_BASE_URL, then NEXT_PUBLIC_API_BASE_URL
+  const explicit = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (explicit && !explicit.includes("localhost")) {
+    return explicit;
+  }
+
+  // 3. Fallback for Vercel Preview/Production URLs
+  if (process.env.VERCEL_URL) {
+    // If you are using a reverse proxy or same-repo backend
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // 4. Local development default
+  return explicit || "http://localhost:8000";
 }
 
 export async function apiFetch<T>(

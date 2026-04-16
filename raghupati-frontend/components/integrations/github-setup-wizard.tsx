@@ -22,12 +22,15 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 type SetupStep = "intro" | "token" | "webhook" | "verify" | "complete";
 type TokenStatus = "idle" | "validating" | "valid" | "invalid";
@@ -40,6 +43,7 @@ const requiredScopes = [
 
 export function GitHubSetupWizard() {
   const reduceMotion = useReducedMotion();
+  const { data: session } = useSession();
   const [step, setStep] = useState<SetupStep>("intro");
   const [token, setToken] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
@@ -49,27 +53,79 @@ export function GitHubSetupWizard() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Check for existing integration on mount
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const checkStatus = async () => {
+      const { data, error } = await supabase
+        .from('user_secrets')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('secret_key', 'github_token')
+        .single();
+      
+      if (data && !error) {
+        setSaved(true);
+      }
+    };
+    checkStatus();
+  }, [session]);
+
   const validateToken = useCallback(async () => {
     if (!token || token.length < 10) return;
     setTokenStatus("validating");
 
-    // Simulate validation (in production, this calls your backend proxy)
-    await new Promise((r) => setTimeout(r, 1500));
-
-    if (token.startsWith("ghp_") || token.startsWith("github_pat_")) {
-      setTokenStatus("valid");
-    } else {
+    // Perform a lightweight validation (Check prefix and length)
+    // Production note: Ideally call a backend endpoint that attempts a /user fetch
+    try {
+      if (token.startsWith("ghp_") || token.startsWith("github_pat_")) {
+        setTokenStatus("valid");
+      } else {
+        setTokenStatus("invalid");
+      }
+    } catch (err) {
       setTokenStatus("invalid");
     }
   }, [token]);
 
   const handleSave = async () => {
+    if (!session?.user?.id) {
+      toast.error("You must be signed in to save integration settings.");
+      return;
+    }
+
     setSaving(true);
-    // In production: POST to your backend API which stores encrypted
-    await new Promise((r) => setTimeout(r, 1200));
-    setSaving(false);
-    setSaved(true);
-    setStep("complete");
+    try {
+      const { error } = await supabase.from('user_secrets').upsert({
+        user_id: session.user.id,
+        secret_key: 'github_token',
+        secret_value: token, // Note: Encryption should be handled by pgcrypto or server-side proxy in high-sec prod
+        metadata: { 
+          has_webhook_secret: !!webhookSecret,
+          updated_at: new Date().toISOString()
+        }
+      }, { onConflict: 'user_id,secret_key' });
+
+      if (error) throw error;
+
+      if (webhookSecret) {
+        await supabase.from('user_secrets').upsert({
+          user_id: session.user.id,
+          secret_key: 'github_webhook_secret',
+          secret_value: webhookSecret
+        }, { onConflict: 'user_id,secret_key' });
+      }
+
+      setSaved(true);
+      setStep("complete");
+      toast.success("GitHub integration saved successfully.");
+    } catch (err: any) {
+      console.error("Save failed:", err);
+      toast.error(`Failed to save integration: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
