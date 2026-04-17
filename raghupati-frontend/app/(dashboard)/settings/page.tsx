@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Shield, Key, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { useGithubToken } from "@/hooks/useGithubToken";
+import { env } from "@/env";
 
 type HealthStatus = {
   status: string;
@@ -26,7 +27,7 @@ export default function SettingsPage() {
   const checkHealth = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/health`);
+      const res = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/health`);
       if (res.ok) {
         setHealth(await res.json());
       }

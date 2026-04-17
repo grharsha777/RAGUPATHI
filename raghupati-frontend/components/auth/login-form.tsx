@@ -43,7 +43,9 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export function LoginForm() {
+import { Suspense } from "react";
+
+function LoginFormContent() {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
@@ -250,5 +252,17 @@ export function LoginForm() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export function LoginForm() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-dvh items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginFormContent />
+    </Suspense>
   );
 }

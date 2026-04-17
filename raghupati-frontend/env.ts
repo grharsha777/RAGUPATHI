@@ -7,6 +7,7 @@ const serverSchema = z.object({
   AUTH_GITHUB_SECRET: z.string().optional(),
   AUTH_GOOGLE_ID: z.string().optional(),
   AUTH_GOOGLE_SECRET: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 });
 
 const clientSchema = z.object({
@@ -34,6 +35,7 @@ const processEnv = {
   AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
 };
 
 
