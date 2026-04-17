@@ -21,14 +21,23 @@ export function AnimatedCounter({
   decimals = 0,
 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  const isInView = useInView(ref, { once: true, amount: 0.1 });
   const reduceMotion = useReducedMotion();
-  const [display, setDisplay] = useState(reduceMotion ? value : 0);
+  
+  // Set fallback state immediately matching value, then animate
+  const [display, setDisplay] = useState(value);
+  const [hasStarted, setHasStarted] = useState(false);
 
   useEffect(() => {
     if (!isInView || reduceMotion) {
       setDisplay(value);
       return;
+    }
+
+    if (!hasStarted) {
+      setDisplay(0);
+      setHasStarted(true);
+      return; // Give it one render cycle to reset to 0 before animating
     }
 
     let startTime: number | null = null;
@@ -39,18 +48,22 @@ export function AnimatedCounter({
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / (duration * 1000), 1);
 
-      // Ease-out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Number((eased * value).toFixed(decimals)));
+      // cubic-bezier(0.25, 0.1, 0.25, 1) equivalent easing
+      const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+      const easedProgress = easeOut(progress);
+      
+      setDisplay(Number((easedProgress * value).toFixed(decimals)));
 
       if (progress < 1) {
         raf = requestAnimationFrame(animate);
+      } else {
+        setDisplay(value);
       }
     };
 
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [isInView, value, duration, reduceMotion, decimals]);
+  }, [isInView, value, duration, reduceMotion, decimals, hasStarted]);
 
   return (
     <span ref={ref} className={className}>

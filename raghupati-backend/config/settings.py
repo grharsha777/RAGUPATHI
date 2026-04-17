@@ -127,12 +127,12 @@ class Settings(BaseSettings):
     )
 
     # --- Notifications ---
-    slack_webhook_url: SecretStr = Field(
-        ...,
+    slack_webhook_url: SecretStr | None = Field(
+        default=None,
         description="Slack incoming webhook URL for Vibhishana alerts.",
     )
-    sendgrid_api_key: SecretStr = Field(
-        ...,
+    sendgrid_api_key: SecretStr | None = Field(
+        default=None,
         description="SendGrid API key for HTML incident emails.",
     )
     sendgrid_from_email: str = Field(

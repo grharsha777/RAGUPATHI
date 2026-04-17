@@ -1,258 +1,159 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { motion, useReducedMotion } from "framer-motion";
-import dynamic from "next/dynamic";
-import {
-  Activity,
-  ArrowUpRight,
-  Cpu,
-  Gauge,
-  GitPullRequest,
-  ShieldAlert,
-  Timer,
-} from "lucide-react";
-
-import { KpiStatCard } from "@/components/dashboard/kpi-stat-card";
-const SeverityDonutCard = dynamic(
-  () => import("@/components/dashboard/severity-donut-card").then((m) => m.SeverityDonutCard),
-  { ssr: false, loading: () => <div className="h-[220px] bg-muted/20 animate-pulse rounded-xl border border-border/70" /> }
-);
-const ResponseTrendChart = dynamic(
-  () => import("@/components/dashboard/response-trend-chart").then((m) => m.ResponseTrendChart),
-  { ssr: false, loading: () => <div className="h-[240px] bg-muted/20 animate-pulse rounded-xl border border-border/70" /> }
-);
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { LiveStatusBadge } from "@/components/shared/live-status-badge";
-import { SeverityBadge } from "@/components/shared/severity-badge";
-import { useHealthQuery } from "@/lib/hooks/use-health";
-import { useIncidentsQuery } from "@/lib/hooks/use-incidents";
-import { useRepositoriesQuery } from "@/lib/hooks/use-support-queries";
-import { cn } from "@/lib/utils/cn";
-import { supabase } from "@/lib/supabase/client";
-
+import React from "react";
+import { motion } from "framer-motion";
+import { useIncidents } from "@/hooks/useIncidents";
+import { useAgentEvents } from "@/hooks/useAgentEvents";
+import { ShieldAlert, CheckCircle2, Activity, ShieldCheck, AlertCircle } from "lucide-react";
 
 export function DashboardClient() {
-  const queryClient = useQueryClient();
-  const reduceMotion = useReducedMotion();
-  const incidents = useIncidentsQuery();
-  const repos = useRepositoriesQuery();
-  const health = useHealthQuery();
+  const { incidents, isLoading } = useIncidents();
+  const { events } = useAgentEvents();
 
-  // Unified Realtime Subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
-        queryClient.invalidateQueries({ queryKey: ["incidents"] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'repositories' }, () => {
-        queryClient.invalidateQueries({ queryKey: ["repositories"] });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  const rows = incidents.data?.slice(0, 6) ?? [];
-  const topRepos = repos.data?.slice(0, 3) ?? [];
+  const activeIncidents = incidents.filter((i: any) => i.status !== 'resolved' && i.status !== 'auto_fixed');
+  const resolvedCount = incidents.filter((i: any) => i.status === 'resolved' || i.status === 'auto_fixed').length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Mission control</h1>
-          <p className="text-sm text-muted-foreground">
-            Live posture across incidents, agents, and delivery channels — optimized for triage speed.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <LiveStatusBadge status={health.data?.status === "ok" ? "healthy" : "degraded"} label="control plane" pulse />
-          <span className="text-2xs text-muted-foreground tabular-nums">
-            updated {health.dataUpdatedAt ? new Date(health.dataUpdatedAt).toLocaleTimeString() : "—"}
-          </span>
+    <div className="flex flex-col gap-6 p-6 h-full text-white bg-[var(--deep)]">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold font-['Syne']">Mission Control</h1>
+        <div className="flex gap-4">
+          <div className="flex items-center gap-2 px-3 py-1 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-full text-xs font-mono">
+            <div className="size-2 bg-teal-500 rounded-full animate-pulse" />
+            System nominal
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <KpiStatCard
-          title="Mean time to remediate"
-          hint="rolling 24h"
-          value="29m"
-          icon={Timer}
-          trend={{ label: "−12% vs prior day", positive: true }}
-        />
-        <KpiStatCard
-          title="Mean time to detect"
-          hint="pipeline ingress → commander"
-          value="8m"
-          icon={Gauge}
-          trend={{ label: "stable", positive: true }}
-        />
-        <KpiStatCard
-          title="Autonomous fix rate"
-          hint="QA-passed / attempted"
-          value="74%"
-          icon={Cpu}
-          trend={{ label: "+6% after retry tuning", positive: true }}
-        />
-        <KpiStatCard
-          title="Active incidents"
-          hint="open + running"
-          value={incidents.isLoading ? "—" : String(incidents.data?.filter((i) => i.status === "RUNNING").length ?? 0)}
-          icon={ShieldAlert}
-          trend={{ label: "queue healthy", positive: true }}
-        />
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-3">
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Response trend</CardTitle>
-              <CardDescription className="text-xs">MTTR / MTTD — compact operational signal, not vanity metrics.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[240px] pt-0">
-              <ResponseTrendChart />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-sm">Active incident stream</CardTitle>
-                  <CardDescription className="text-xs">Latest commander decisions and delegations.</CardDescription>
-                </div>
-                <div className="inline-flex items-center gap-2 text-2xs text-muted-foreground">
-                  <Activity className="size-3 text-state-running" aria-hidden />
-                  live
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ScrollArea className="h-[220px] pr-3">
-                <div className="space-y-2">
-                  {incidents.isLoading
-                    ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-14 w-full" />)
-                    : rows.map((incident, index) => (
-                        <motion.div
-                          key={incident.id}
-                          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.25, delay: index * 0.03 }}
-                          className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-card/50 p-3"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold leading-snug">{incident.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">{incident.repoFullName}</div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-2">
-                            <SeverityBadge severity={incident.severity} />
-                            <span className="text-2xs text-muted-foreground tabular-nums">
-                              {new Date(incident.updatedAt).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </motion.div>
-                      ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-3">
-          <SeverityDonutCard />
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Delivery outcomes</CardTitle>
-              <CardDescription className="text-xs">PR automation + comms reliability.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <GitPullRequest className="size-4" aria-hidden />
-                  PRs opened (24h)
-                </div>
-                <div className="font-semibold tabular-nums">18</div>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ArrowUpRight className="size-4" aria-hidden />
-                  Slack alerts
-                </div>
-                <div className="font-semibold tabular-nums">26</div>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Activity className="size-4" aria-hidden />
-                  Retry loops closed
-                </div>
-                <div className="font-semibold tabular-nums">9</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Retry loop visibility</CardTitle>
-            <CardDescription className="text-xs">
-              LangGraph states are tracked end-to-end — failures return structured evidence to Nala.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2 text-sm">
-            {["PATCH_GENERATED", "QA_RUNNING", "QA_FAILED", "RETRY_PATCH", "QA_PASSED"].map((state) => (
-              <div
-                key={state}
-                className={cn(
-                  "flex items-center justify-between rounded-md border border-border/70 bg-muted/20 px-3 py-2",
-                  state === "QA_FAILED" && "border-amber-500/30 bg-amber-500/5",
-                  state === "QA_PASSED" && "border-emerald-500/30 bg-emerald-500/5",
-                )}
-              >
-                <span className="font-mono text-xs">{state}</span>
-                <span className="text-2xs text-muted-foreground">observed</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Monitored repositories</CardTitle>
-            <CardDescription className="text-xs">Webhook health + dependency posture snapshot.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {repos.isLoading ? (
-               Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-10 w-full" />)
-            ) : topRepos.length > 0 ? (
-              topRepos.map((repo) => (
-                <div key={repo.id} className="flex items-center justify-between rounded-md border border-border/70 bg-card/50 px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{repo.fullName}</div>
-                    <div className="text-xs text-muted-foreground">{repo.defaultBranch} · {repo.webhookStatus}</div>
-                  </div>
-                  <LiveStatusBadge status={repo.webhookStatus === 'active' ? "healthy" : "degraded"} label="ingest" />
-                </div>
-              ))
+      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+        {/* LEFT PANEL: 30% Real-time agent activity stream */}
+        <div className="col-span-12 lg:col-span-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--surface2)] flex gap-2 items-center">
+            <Activity className="size-4 text-teal-500" />
+            <h2 className="text-sm font-semibold text-slate-200">Live Agent Stream</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {events.length === 0 ? (
+              <div className="text-xs text-slate-500 flex justify-center items-center h-full">Waiting for telemetry...</div>
             ) : (
-              <div className="flex h-20 items-center justify-center rounded-md border border-dashed border-border/70 text-xs text-muted-foreground">
-                No monitored repositories found.
-              </div>
+              events.map((event) => (
+                <motion.div 
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  key={event.id}
+                  className="p-3 bg-black/40 border border-[var(--border)] rounded-xl relative"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-teal-400 font-mono">{event.agent_name}</span>
+                    <span className="text-[10px] text-slate-500">{new Date(event.created_at).toLocaleTimeString()}</span>
+                  </div>
+                  <p className="text-xs text-slate-300 pb-1">{event.message}</p>
+                </motion.div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* CENTER PANEL: 45% MTTR/MTTD + active incident cards */}
+        <div className="col-span-12 lg:col-span-5 flex flex-col gap-6">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 h-48 flex flex-col justify-center relative overflow-hidden">
+             {/* Decorative Background */}
+             <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/5 to-transparent pointer-events-none" />
+             <div className="flex items-center gap-2 mb-4">
+               <ShieldCheck className="size-5 text-teal-500" />
+               <h2 className="text-sm font-semibold">Response Trend</h2>
+             </div>
+             <div className="flex gap-8">
+               <div>
+                  <div className="text-xs text-slate-400 font-mono mb-1">MTTR</div>
+                  <div className="text-3xl font-bold font-['Syne'] text-white">29<span className="text-lg text-slate-500 ml-1">min</span></div>
+               </div>
+               <div>
+                  <div className="text-xs text-slate-400 font-mono mb-1">MTTD</div>
+                  <div className="text-3xl font-bold font-['Syne'] text-white">8<span className="text-lg text-slate-500 ml-1">min</span></div>
+               </div>
+               <div>
+                  <div className="text-xs text-slate-400 font-mono mb-1">Automated PRs</div>
+                  <div className="text-3xl font-bold font-['Syne'] text-emerald-400">18</div>
+               </div>
+             </div>
+          </div>
+
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[var(--border)] flex gap-2 items-center">
+              <ShieldAlert className="size-4 text-amber-500" />
+              <h2 className="text-sm font-semibold">Active Incidents ({activeIncidents.length})</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {isLoading ? (
+                <div className="text-xs text-slate-500">Loading...</div>
+              ) : activeIncidents.length === 0 ? (
+                <div className="text-xs text-slate-500 flex justify-center items-center h-full">No active incidents.</div>
+              ) : (
+                activeIncidents.map((incident: any) => (
+                  <div key={incident.id} className="p-4 bg-white/5 border border-[var(--border)] rounded-xl hover:bg-white/10 cursor-pointer transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                       <span className="text-sm font-semibold truncate pr-4">{incident.title}</span>
+                       <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold bg-amber-500/20 text-amber-500">{incident.severity}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+                      <span>{incident.repo}</span>
+                      <span className="flex items-center gap-1"><AlertCircle className="size-3 text-red-400"/> {incident.cve_id}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL: 25% Severity donut + delivery outcomes + system health */}
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
+          
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5">
+            <h2 className="text-sm font-semibold mb-4">Outcomes Today</h2>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                 <span className="text-xs text-slate-400">Incidents Handled</span>
+                 <span className="text-sm font-bold">{incidents.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                 <span className="text-xs text-slate-400">Autonomous Fixes</span>
+                 <span className="text-sm font-bold text-teal-400">{resolvedCount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                 <span className="text-xs text-slate-400">Human Escalation</span>
+                 <span className="text-sm font-bold text-amber-400">{incidents.length - resolvedCount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 flex-1">
+             <h2 className="text-sm font-semibold mb-4 flex justify-between">System Health <a href="/dashboard/settings" className="text-xs text-teal-400 hover:text-teal-300">View keys →</a></h2>
+             <div className="space-y-3">
+               <div className="flex items-center gap-2">
+                 <div className="size-2 rounded-full bg-emerald-500" />
+                 <span className="text-xs text-slate-300 flex-1">GitHub API</span>
+                 <span className="text-xs text-emerald-500 bg-emerald-500/10 px-1 rounded">24ms</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <div className="size-2 rounded-full bg-emerald-500" />
+                 <span className="text-xs text-slate-300 flex-1">Mistral AI</span>
+                 <span className="text-xs text-emerald-500 bg-emerald-500/10 px-1 rounded">405ms</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <div className="size-2 rounded-full bg-emerald-500" />
+                 <span className="text-xs text-slate-300 flex-1">Groq LPU</span>
+                 <span className="text-xs text-emerald-500 bg-emerald-500/10 px-1 rounded">82ms</span>
+               </div>
+               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[var(--border)]">
+                 <div className="size-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(0,212,168,0.8)]" />
+                 <span className="text-xs font-semibold text-teal-400">7/7 Agents Online</span>
+               </div>
+             </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );

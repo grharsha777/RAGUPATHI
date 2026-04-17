@@ -17,6 +17,10 @@ const clientSchema = z.object({
   NEXT_PUBLIC_AUTH_GOOGLE_AVAILABLE: z.enum(["0", "1"]).optional(),
 });
 
+type ServerEnv = z.infer<typeof serverSchema>;
+type ClientEnv = z.infer<typeof clientSchema>;
+export type FullEnv = ServerEnv & ClientEnv;
+
 // Using process.env for all variables since they are defined in ../.env.local
 const processEnv = {
   NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
@@ -32,23 +36,32 @@ const processEnv = {
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
 };
 
-let env = process.env;
 
 export function validateEnv() {
-  const serverParsed = serverSchema.safeParse(processEnv);
+  const isServer = typeof window === "undefined";
+  
+  // Always validate client schema
   const clientParsed = clientSchema.safeParse(processEnv);
+  
+  // Only validate server schema on the server
+  const serverParsed = isServer 
+    ? serverSchema.safeParse(processEnv)
+    : { success: true, data: {} };
 
-  if (!serverParsed.success || !clientParsed.success) {
+  if (!clientParsed.success || (isServer && !serverParsed.success)) {
     console.error("❌ Invalid environment variables:", {
-      server: serverParsed.success ? null : serverParsed.error.format(),
+      server: !isServer ? "Skipped (Browser)" : (serverParsed.success ? null : (serverParsed as any).error.format()),
       client: clientParsed.success ? null : clientParsed.error.format(),
     });
     throw new Error("Invalid environment variables");
   }
 
-  return { ...serverParsed.data, ...clientParsed.data };
+  return { 
+    ...clientParsed.data, 
+    ...(isServer ? (serverParsed as any).data : {}) 
+  } as FullEnv;
 }
 
-env = validateEnv();
+const env = validateEnv();
 
 export { env };

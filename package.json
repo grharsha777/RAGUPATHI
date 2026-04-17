@@ -7,5 +7,9 @@
   },
   "engines": {
     "node": "20.x"
+  },
+  "dependencies": {
+    "pydantic": "^0.0.1-security",
+    "pydantic-settings": "^0.0.1-security"
   }
 }
