@@ -23,7 +23,9 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LoginPage() {
+import { Suspense } from "react";
+
+function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = params?.get("callbackUrl") ?? "/dashboard";
@@ -171,5 +173,17 @@ export default function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-dvh items-center justify-center bg-[var(--deep)]">
+        <Loader2 className="size-8 animate-spin text-teal-500" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
