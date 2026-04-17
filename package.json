@@ -1,15 +1,15 @@
 {
   "name": "raghupati-monorepo",
   "private": true,
+  "workspaces": [
+    "raghupati-frontend"
+  ],
   "scripts": {
-    "build": "cd raghupati-frontend && npm run build && cp -a .next ..",
-    "start": "cd raghupati-frontend && npm run start"
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present"
   },
   "engines": {
-    "node": "20.x"
-  },
-  "dependencies": {
-    "pydantic": "^0.0.1-security",
-    "pydantic-settings": "^0.0.1-security"
+    "node": ">=20.x"
   }
 }
