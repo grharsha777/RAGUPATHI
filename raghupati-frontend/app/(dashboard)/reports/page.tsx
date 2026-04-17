@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,11 @@ import { useReportsQuery } from "@/lib/hooks/use-support-queries";
 
 export default function ReportsPage() {
   const reports = useReportsQuery();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -64,7 +70,7 @@ export default function ReportsPage() {
                       <TableCell className="font-mono text-xs">{report.kind}</TableCell>
                       <TableCell className="font-mono text-xs">{report.incidentId}</TableCell>
                       <TableCell className="tabular-nums text-xs text-muted-foreground">
-                        {new Date(report.createdAt).toLocaleString()}
+                        {mounted ? new Date(report.createdAt).toLocaleString() : "..."}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button type="button" variant="outline" size="sm" disabled={!report.href}>

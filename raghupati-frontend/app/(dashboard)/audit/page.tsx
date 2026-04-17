@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,11 @@ import { useAuditQuery } from "@/lib/hooks/use-support-queries";
 export default function AuditPage() {
   const audit = useAuditQuery();
   const [query, setQuery] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const rows = useMemo(() => {
     const data = audit.data ?? [];
@@ -78,7 +83,7 @@ export default function AuditPage() {
                   {rows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="tabular-nums text-xs text-muted-foreground">
-                        {new Date(row.timestamp).toLocaleString()}
+                        {mounted ? new Date(row.timestamp).toLocaleString() : "..."}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{row.traceId}</TableCell>
                       <TableCell className="font-mono text-xs">{row.incidentId ?? "—"}</TableCell>
