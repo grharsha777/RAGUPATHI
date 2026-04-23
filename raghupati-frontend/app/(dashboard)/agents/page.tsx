@@ -285,7 +285,7 @@ export default function AgentsPage() {
                   transition={{ delay: i * 0.03 }}
                   onClick={() => handleAgentClick(agent.id)}
                   className={`rounded-xl border p-4 cursor-pointer hover:scale-[1.02] transition-all ${
-                    agentColors[agent.id] || "border-zinc-700/30"
+                    AGENT_COLORS[agent.id] || "border-zinc-700/30"
                   } bg-[#0c0c14] hover:bg-[#0e0e18]`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">

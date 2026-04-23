@@ -42,6 +42,42 @@ export function useScanSSE(runId: string | null) {
     reset,
   } = useExecutionStore();
 
+  const fetchScanDetail = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/scans/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.scan_run) {
+        const sr = data.scan_run;
+        setScanRun({
+          id: sr.id,
+          repo_full_name: sr.repo_full_name,
+          trigger_type: sr.trigger_type,
+          status: sr.status,
+          stage: mapStageToScanStage(sr.stage),
+          started_at: sr.started_at,
+          completed_at: sr.completed_at,
+          vulnerabilities_found: sr.vulnerabilities_found || 0,
+          patches_generated: sr.patches_generated || 0,
+          pr_url: sr.pr_url,
+          error_message: sr.error_message || null,
+        });
+        if (sr.status === "complete" || sr.status === "failed") {
+          setScanStage(sr.status === "complete" ? "completed" : "idle");
+          setScanStageProgress(100);
+        }
+      }
+
+      if (data.agents) {
+        const store = useExecutionStore.getState();
+        store.setAgents(data.agents);
+      }
+    } catch {
+      // Silently fail
+    }
+  }, [setScanRun, setScanStage, setScanStageProgress]);
+
   const connect = useCallback(() => {
     if (!runId) return;
 
@@ -246,41 +282,7 @@ export function useScanSSE(runId: string | null) {
     };
   }, [runId, setSseConnected, addLog, addGitHubEvent, setScanStage, setScanStageProgress, updateAgent, setScanRun, fetchScanDetail]);
 
-  const fetchScanDetail = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/scans/${id}`);
-      if (!res.ok) return;
-      const data = await res.json();
 
-      if (data.scan_run) {
-        const sr = data.scan_run;
-        setScanRun({
-          id: sr.id,
-          repo_full_name: sr.repo_full_name,
-          trigger_type: sr.trigger_type,
-          status: sr.status,
-          stage: mapStageToScanStage(sr.stage),
-          started_at: sr.started_at,
-          completed_at: sr.completed_at,
-          vulnerabilities_found: sr.vulnerabilities_found || 0,
-          patches_generated: sr.patches_generated || 0,
-          pr_url: sr.pr_url,
-          error_message: sr.error_message || null,
-        });
-        if (sr.status === "complete" || sr.status === "failed") {
-          setScanStage(sr.status === "complete" ? "completed" : "idle");
-          setScanStageProgress(100);
-        }
-      }
-
-      if (data.agents) {
-        const store = useExecutionStore.getState();
-        store.setAgents(data.agents);
-      }
-    } catch {
-      // Silently fail
-    }
-  }, [setScanRun, setScanStage, setScanStageProgress]);
 
   useEffect(() => {
     if (!runId) return;

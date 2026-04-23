@@ -57,54 +57,6 @@ export default function SettingsPage() {
   const [tokenVerification, setTokenVerification] = useState<TokenVerification>({ status: "idle" });
   const [savingToken, setSavingToken] = useState(false);
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem("github_pat");
-    if (savedToken) {
-      setGithubToken(savedToken);
-      verifyGithubToken(savedToken);
-    }
-  }, [verifyGithubToken]);
-
-  // Notification config state
-  const [notifConfig, setNotifConfig] = useState<NotificationConfig>({
-    slackWebhook: "",
-    discordWebhook: "",
-    resendApiKey: "",
-    alertEmail: "",
-  });
-  const [savingConfig, setSavingConfig] = useState(false);
-
-  useEffect(() => {
-    const savedConfig = localStorage.getItem("raghupati_notif_config");
-    if (savedConfig) {
-      try { setNotifConfig(JSON.parse(savedConfig)); } catch (e) {}
-    }
-  }, []);
-  const [testingSlack, setTestingSlack] = useState(false);
-  const [testingDiscord, setTestingDiscord] = useState(false);
-  const [slackResult, setSlackResult] = useState<string | null>(null);
-  const [discordResult, setDiscordResult] = useState<string | null>(null);
-
-  // Backend health
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [healthLoading, setHealthLoading] = useState(false);
-
-  const checkHealth = useCallback(async () => {
-    setHealthLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/health`, { cache: "no-store" });
-      if (res.ok) setHealth(await res.json());
-    } catch (e) {
-      console.error("Health check failed:", e);
-    } finally {
-      setHealthLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkHealth();
-  }, [checkHealth]);
-
   // ── GitHub Token Verification ────────────────────────────────
   const verifyGithubToken = useCallback(async (tokenToVerify?: string) => {
     const token = typeof tokenToVerify === "string" ? tokenToVerify : githubToken;
@@ -156,6 +108,56 @@ export default function SettingsPage() {
       });
     }
   }, [githubToken]);
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem("github_pat");
+    if (savedToken) {
+      setGithubToken(savedToken);
+      verifyGithubToken(savedToken);
+    }
+  }, [verifyGithubToken]);
+
+  // Notification config state
+  const [notifConfig, setNotifConfig] = useState<NotificationConfig>({
+    slackWebhook: "",
+    discordWebhook: "",
+    resendApiKey: "",
+    alertEmail: "",
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  useEffect(() => {
+    const savedConfig = localStorage.getItem("raghupati_notif_config");
+    if (savedConfig) {
+      try { setNotifConfig(JSON.parse(savedConfig)); } catch (e) {}
+    }
+  }, []);
+  const [testingSlack, setTestingSlack] = useState(false);
+  const [testingDiscord, setTestingDiscord] = useState(false);
+  const [slackResult, setSlackResult] = useState<string | null>(null);
+  const [discordResult, setDiscordResult] = useState<string | null>(null);
+
+  // Backend health
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+
+  const checkHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/health`, { cache: "no-store" });
+      if (res.ok) setHealth(await res.json());
+    } catch (e) {
+      console.error("Health check failed:", e);
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
+
+
 
   const saveGithubToken = async () => {
     if (tokenVerification.status !== "verified") return;
