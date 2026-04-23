@@ -1,25 +1,27 @@
 import useSWR from 'swr';
-import { supabase } from '@/lib/supabase';
-import { useSession } from 'next-auth/react';
+import { supabase } from '@/lib/supabase/client';
 
 export function useIncidents() {
-  const { data: session } = useSession();
-
   const fetcher = async () => {
-    if (!session?.user?.id) return [];
-    const { data, error } = await supabase
-      .from('incidents')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('incidents')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[useIncidents] fetch failed:', err);
+      return [];
+    }
   };
 
   const { data, error, isLoading, mutate } = useSWR(
-    session?.user?.id ? ['incidents', session.user.id] : null,
+    'incidents-dashboard',
     fetcher,
-    { refreshInterval: 5000 } // Poll every 5s as fallback to realtime
+    { refreshInterval: 5000 }
   );
 
   return { incidents: data || [], error, isLoading, mutate };

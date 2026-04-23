@@ -1,14 +1,13 @@
-"""SendGrid HTML email delivery for incident reporting."""
+"""Resend email delivery for incident reporting (replaces SendGrid)."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
+import httpx
 import structlog
 from crewai.tools import BaseTool
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config.settings import get_settings
@@ -16,60 +15,71 @@ from config.settings import get_settings
 logger = structlog.get_logger(__name__)
 
 
-class SendGridEmailTool(BaseTool):
-    """Send HTML email using SendGrid."""
+class ResendEmailTool(BaseTool):
+    """Send HTML email using the Resend API."""
 
-    name: str = "sendgrid_email"
+    name: str = "resend_email"
     description: str = (
-        "Send an HTML email. Input JSON: "
-        "{\"to\":\"ops@example.com\",\"subject\":\"...\",\"html\":\"<p>...</p>\"}."
+        "Send an HTML email via Resend. Input JSON: "
+        '{"to":"ops@example.com","subject":"...","html":"<p>...</p>"}.'
     )
 
     def _run(self, query: str) -> str:
-        """Send email via SendGrid v3 API.
+        """Send email via Resend REST API.
 
         Args:
             query: JSON string with recipients and HTML body.
 
         Returns:
-            JSON string with SendGrid response metadata.
+            JSON string with Resend response metadata.
         """
         settings = get_settings()
         try:
             payload = json.loads(query)
         except json.JSONDecodeError as exc:
-            logger.exception("sendgrid_invalid_json", error=str(exc))
+            logger.exception("resend_invalid_json", error=str(exc))
             return json.dumps({"ok": False, "error": "invalid_json"})
+
+        resend_key = settings.resend_api_key
+        if not resend_key:
+            return json.dumps({"ok": False, "error": "RESEND_API_KEY not configured"})
+
         to_email = str(payload.get("to") or settings.incident_email_to or "")
-        subject = str(payload.get("subject", "RAGHUPATI security incident"))
+        subject = str(payload.get("subject", "RAGHUPATHI security incident"))
         html = str(payload.get("html", "<p></p>"))
+
         if not to_email:
             return json.dumps({"ok": False, "error": "recipient_required"})
-        message = Mail(
-            from_email=(settings.sendgrid_from_email, settings.sendgrid_from_name),
-            to_emails=to_email,
-            subject=subject,
-            html_content=html,
-        )
-        client = SendGridAPIClient(settings.sendgrid_api_key.get_secret_value())
+
+        body = {
+            "from": f"{settings.resend_from_name} <{settings.resend_from_email}>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        }
 
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=0.5, min=0.5, max=8),
             reraise=True,
         )
-        def _send() -> tuple[int, dict[str, Any]]:
-            response = client.send(message)
-            body: dict[str, Any] = {}
-            try:
-                body = response.body  # type: ignore[assignment]
-            except Exception:
-                body = {}
-            return int(response.status_code), body
+        def _send() -> httpx.Response:
+            with httpx.Client(timeout=30) as client:
+                return client.post(
+                    "https://api.resend.com/emails",
+                    headers={
+                        "Authorization": f"Bearer {resend_key.get_secret_value()}",
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
+                )
 
         try:
-            status, _ = _send()
+            response = _send()
+            response.raise_for_status()
+            data = response.json()
         except Exception as exc:
-            logger.exception("sendgrid_send_failed", error=str(exc))
-            return json.dumps({"ok": False, "error": "sendgrid_failed"})
-        return json.dumps({"ok": True, "status_code": status})
+            logger.exception("resend_send_failed", error=str(exc))
+            return json.dumps({"ok": False, "error": "resend_failed"})
+
+        return json.dumps({"ok": True, "id": data.get("id"), "status_code": response.status_code})

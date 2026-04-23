@@ -1,48 +1,69 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useSession } from 'next-auth/react';
+import { supabase } from '@/lib/supabase/client';
+
+export type AgentEvent = {
+  id: string;
+  agent_name: string;
+  status: string;
+  output: any;
+  duration_ms: number | null;
+  created_at: string;
+  scan_run_id: string;
+};
 
 export function useAgentEvents() {
-  const { data: session } = useSession();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<AgentEvent[]>([]);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!supabase) return;
 
-    // Initial fetch
+    // Initial fetch — latest 30 agent_runs
     const fetchEvents = async () => {
-      const { data } = await supabase
-        .from('agent_events')
-        .select('*, incidents!inner(user_id)')
-        .eq('incidents.user_id', session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      if (data) setEvents(data);
+      try {
+        const { data } = await supabase
+          .from('agent_runs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (data) setEvents(data);
+      } catch (err) {
+        console.warn('[useAgentEvents] fetch failed:', err);
+      }
     };
 
     fetchEvents();
 
-    // Realtime subscription
+    // Realtime subscription on agent_runs (INSERT + UPDATE)
     const channel = supabase
-      .channel('agent_events_changes')
-      .on(
+      ?.channel('agent_runs_realtime')
+      ?.on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
-          table: 'agent_events',
+          table: 'agent_runs',
         },
         (payload) => {
-          setEvents((prev) => [payload.new, ...prev].slice(0, 50));
+          if (payload.eventType === 'INSERT') {
+            setEvents((prev) => [payload.new as AgentEvent, ...prev].slice(0, 50));
+          } else if (payload.eventType === 'UPDATE') {
+            setEvents((prev) =>
+              prev.map((e) =>
+                e.id === (payload.new as AgentEvent).id ? (payload.new as AgentEvent) : e
+              )
+            );
+          }
         }
       )
-      .subscribe();
+      ?.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase?.removeChannel(channel);
+      }
     };
-  }, [session?.user?.id]);
+  }, []);
 
   return { events };
 }

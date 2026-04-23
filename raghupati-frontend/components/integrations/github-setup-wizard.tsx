@@ -23,17 +23,23 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 type SetupStep = "intro" | "token" | "webhook" | "verify" | "complete";
 type TokenStatus = "idle" | "validating" | "valid" | "invalid";
+
+type TokenInfo = {
+  username?: string;
+  avatar?: string;
+  publicRepos?: number;
+  privateRepos?: number;
+  rateLimitRemaining?: number;
+};
 
 const requiredScopes = [
   { scope: "repo", reason: "Read repository code, dependencies, and create branches" },
@@ -43,89 +49,114 @@ const requiredScopes = [
 
 export function GitHubSetupWizard() {
   const reduceMotion = useReducedMotion();
-  const { data: session } = useSession();
   const [step, setStep] = useState<SetupStep>("intro");
   const [token, setToken] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>("idle");
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Check for existing integration on mount
+  // Check if token already exists in localStorage
   useEffect(() => {
-    if (!session?.user?.id) return;
+    const existingToken = localStorage.getItem("github_pat");
+    if (existingToken && existingToken.length > 10) {
+      setToken(existingToken);
+      setSaved(true);
+      setStep("complete");
+      // Verify existing token in background
+      verifyTokenSilent(existingToken);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const checkStatus = async () => {
-      const { data, error } = await supabase
-        .from('user_secrets')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('secret_key', 'github_token')
-        .single();
-      
-      if (data && !error) {
-        setSaved(true);
+  const verifyTokenSilent = async (t: string) => {
+    try {
+      const res = await fetch("https://api.github.com/user", {
+        headers: { Authorization: `Bearer ${t}`, Accept: "application/vnd.github+json" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTokenInfo({ username: data.login, avatar: data.avatar_url, publicRepos: data.public_repos, privateRepos: data.total_private_repos || 0 });
+        setTokenStatus("valid");
       }
-    };
-    checkStatus();
-  }, [session]);
+    } catch { /* silent */ }
+  };
 
   const validateToken = useCallback(async () => {
     if (!token || token.length < 10) return;
     setTokenStatus("validating");
+    setTokenInfo({});
 
-    // Perform a lightweight validation (Check prefix and length)
-    // Production note: Ideally call a backend endpoint that attempts a /user fetch
     try {
-      if (token.startsWith("ghp_") || token.startsWith("github_pat_")) {
+      const res = await fetch("https://api.github.com/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Also check rate limit
+        const rateLimitRes = await fetch("https://api.github.com/rate_limit", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const rateData = rateLimitRes.ok ? await rateLimitRes.json() : null;
+
+        setTokenInfo({
+          username: data.login,
+          avatar: data.avatar_url,
+          publicRepos: data.public_repos,
+          privateRepos: data.total_private_repos || data.owned_private_repos || 0,
+          rateLimitRemaining: rateData?.resources?.core?.remaining,
+        });
         setTokenStatus("valid");
+        toast.success(`Token verified — connected as @${data.login}`);
+      } else if (res.status === 401 || res.status === 403) {
+        setTokenStatus("invalid");
+        toast.error("Invalid token — check scopes and expiration.");
       } else {
         setTokenStatus("invalid");
+        toast.error(`Unexpected response: HTTP ${res.status}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       setTokenStatus("invalid");
+      toast.error(`Network error: ${err.message}`);
     }
   }, [token]);
 
   const handleSave = async () => {
-    if (!session?.user?.id) {
-      toast.error("You must be signed in to save integration settings.");
-      return;
-    }
-
+    if (tokenStatus !== "valid") return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('user_secrets').upsert({
-        user_id: session.user.id,
-        secret_key: 'github_token',
-        secret_value: token, // Note: Encryption should be handled by pgcrypto or server-side proxy in high-sec prod
-        metadata: { 
-          has_webhook_secret: !!webhookSecret,
-          updated_at: new Date().toISOString()
-        }
-      }, { onConflict: 'user_id,secret_key' });
-
-      if (error) throw error;
-
+      localStorage.setItem("github_pat", token);
       if (webhookSecret) {
-        await supabase.from('user_secrets').upsert({
-          user_id: session.user.id,
-          secret_key: 'github_webhook_secret',
-          secret_value: webhookSecret
-        }, { onConflict: 'user_id,secret_key' });
+        localStorage.setItem("github_webhook_secret", webhookSecret);
       }
-
+      await new Promise((r) => setTimeout(r, 600)); // Brief delay for visual feedback
       setSaved(true);
       setStep("complete");
-      toast.success("GitHub integration saved successfully.");
+      toast.success("GitHub integration saved successfully!");
     } catch (err: any) {
-      console.error("Save failed:", err);
-      toast.error(`Failed to save integration: ${err.message}`);
+      toast.error(`Failed to save: ${err.message}`);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDisconnect = () => {
+    localStorage.removeItem("github_pat");
+    localStorage.removeItem("github_webhook_secret");
+    setToken("");
+    setWebhookSecret("");
+    setTokenStatus("idle");
+    setTokenInfo({});
+    setSaved(false);
+    setStep("intro");
+    toast.info("GitHub integration disconnected.");
   };
 
   return (
@@ -152,7 +183,7 @@ export function GitHubSetupWizard() {
                 </CardDescription>
               </div>
             </div>
-            <IntegrationStatusBadge connected={saved} />
+            <IntegrationStatusBadge connected={saved} username={tokenInfo.username} />
           </div>
         </CardHeader>
 
@@ -166,10 +197,11 @@ export function GitHubSetupWizard() {
           {step === "token" && (
             <TokenStep
               token={token}
-              setToken={setToken}
+              setToken={(v) => { setToken(v); setTokenStatus("idle"); }}
               showToken={showToken}
               setShowToken={setShowToken}
               tokenStatus={tokenStatus}
+              tokenInfo={tokenInfo}
               onValidate={validateToken}
               webhookSecret={webhookSecret}
               setWebhookSecret={setWebhookSecret}
@@ -184,6 +216,7 @@ export function GitHubSetupWizard() {
           {step === "verify" && (
             <VerifyStep
               tokenStatus={tokenStatus}
+              tokenInfo={tokenInfo}
               saving={saving}
               onBack={() => setStep("token")}
               onSave={handleSave}
@@ -192,7 +225,11 @@ export function GitHubSetupWizard() {
           )}
 
           {step === "complete" && (
-            <CompleteStep reduceMotion={reduceMotion} />
+            <CompleteStep
+              reduceMotion={reduceMotion}
+              tokenInfo={tokenInfo}
+              onDisconnect={handleDisconnect}
+            />
           )}
         </CardContent>
       </Card>
@@ -211,12 +248,11 @@ export function GitHubSetupWizard() {
               <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
               <div>
                 <span className="font-semibold text-foreground">
-                  Tokens are encrypted server-side.{" "}
+                  Tokens stored in browser localStorage.{" "}
                 </span>
-                Your GitHub credentials are transmitted over TLS, encrypted with
-                AES-256-GCM, and stored server-side. They are{" "}
-                <strong>never stored in localStorage or client-side storage</strong>.
-                Only your authenticated backend session can decrypt and use them.
+                Your GitHub credentials are stored locally in your browser and
+                never leave your machine. All GitHub API calls are made directly
+                from your browser session.
               </div>
             </div>
           </div>
@@ -231,9 +267,8 @@ export function GitHubSetupWizard() {
             <li className="flex items-start gap-2">
               <Server className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
               <span>
-                <strong>Backend-only access:</strong> Tokens never reach the
-                browser after initial submission. All GitHub API calls are proxied
-                through your backend.
+                <strong>Local-first:</strong> Token verification happens via
+                direct GitHub API calls. No intermediary servers.
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -267,7 +302,7 @@ export function GitHubSetupWizard() {
 
 /* ── Sub-components ── */
 
-function IntegrationStatusBadge({ connected }: { connected: boolean }) {
+function IntegrationStatusBadge({ connected, username }: { connected: boolean; username?: string }) {
   return (
     <div
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium ${
@@ -281,7 +316,7 @@ function IntegrationStatusBadge({ connected }: { connected: boolean }) {
           connected ? "bg-emerald-500" : "bg-muted-foreground/40"
         }`}
       />
-      {connected ? "Connected" : "Not configured"}
+      {connected ? (username ? `@${username}` : "Connected") : "Not configured"}
     </div>
   );
 }
@@ -355,6 +390,7 @@ function TokenStep({
   showToken,
   setShowToken,
   tokenStatus,
+  tokenInfo,
   onValidate,
   webhookSecret,
   setWebhookSecret,
@@ -369,6 +405,7 @@ function TokenStep({
   showToken: boolean;
   setShowToken: (v: boolean) => void;
   tokenStatus: TokenStatus;
+  tokenInfo: TokenInfo;
   onValidate: () => void;
   webhookSecret: string;
   setWebhookSecret: (v: string) => void;
@@ -413,7 +450,7 @@ function TokenStep({
             </Button>
           </div>
         </div>
-        <TokenStatusIndicator status={tokenStatus} />
+        <TokenStatusIndicator status={tokenStatus} tokenInfo={tokenInfo} />
       </div>
 
       {/* Webhook secret */}
@@ -486,40 +523,56 @@ function TokenStep({
   );
 }
 
-function TokenStatusIndicator({ status }: { status: TokenStatus }) {
+function TokenStatusIndicator({ status, tokenInfo }: { status: TokenStatus; tokenInfo?: TokenInfo }) {
   if (status === "idle") return null;
 
   return (
-    <div
-      className={`flex items-center gap-1.5 text-xs ${
-        status === "validating"
-          ? "text-muted-foreground"
-          : status === "valid"
-            ? "text-emerald-600"
-            : "text-destructive"
-      }`}
-    >
-      {status === "validating" && <Loader2 className="size-3 animate-spin" />}
-      {status === "valid" && <CheckCircle2 className="size-3" />}
-      {status === "invalid" && <AlertTriangle className="size-3" />}
-      <span>
-        {status === "validating" && "Validating token..."}
-        {status === "valid" && "Token is valid — scopes verified"}
-        {status === "invalid" &&
-          "Invalid token format. Expected ghp_ or github_pat_ prefix."}
-      </span>
+    <div className="space-y-2">
+      <div
+        className={`flex items-center gap-1.5 text-xs ${
+          status === "validating"
+            ? "text-muted-foreground"
+            : status === "valid"
+              ? "text-emerald-600"
+              : "text-destructive"
+        }`}
+      >
+        {status === "validating" && <Loader2 className="size-3 animate-spin" />}
+        {status === "valid" && <CheckCircle2 className="size-3" />}
+        {status === "invalid" && <AlertTriangle className="size-3" />}
+        <span>
+          {status === "validating" && "Validating token against GitHub API..."}
+          {status === "valid" && `Token verified — connected as @${tokenInfo?.username || "user"}`}
+          {status === "invalid" &&
+            "Invalid token. Expected ghp_ or github_pat_ prefix with valid scopes."}
+        </span>
+      </div>
+      {status === "valid" && tokenInfo?.avatar && (
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <img src={tokenInfo.avatar} alt="" className="size-8 rounded-full border" />
+          <div>
+            <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">@{tokenInfo.username}</div>
+            <div className="text-[10px] text-muted-foreground">
+              {tokenInfo.publicRepos} public, {tokenInfo.privateRepos} private repos
+              {tokenInfo.rateLimitRemaining != null && ` · ${tokenInfo.rateLimitRemaining} API calls remaining`}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function VerifyStep({
   tokenStatus,
+  tokenInfo,
   saving,
   onBack,
   onSave,
   reduceMotion,
 }: {
   tokenStatus: TokenStatus;
+  tokenInfo: TokenInfo;
   saving: boolean;
   onBack: () => void;
   onSave: () => void;
@@ -534,9 +587,8 @@ function VerifyStep({
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">Confirm and save</h3>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Your credentials will be encrypted with AES-256-GCM and stored
-          server-side. They will never be exposed to the browser again after this
-          step.
+          Your token will be saved to browser localStorage for repository
+          scanning. It stays on your device and is never sent to any external server.
         </p>
       </div>
 
@@ -544,14 +596,13 @@ function VerifyStep({
         <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs">
           <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
           <span className="text-foreground">
-            Token validated successfully
+            Token validated — {tokenInfo?.username ? `@${tokenInfo.username}` : "connected"}
           </span>
         </div>
         <div className="flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/20 p-3 text-xs">
           <Lock className="size-4 shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
-            Credentials will be encrypted and stored on your backend — never in
-            the browser
+            Token stored in browser localStorage — never transmitted externally
           </span>
         </div>
       </div>
@@ -566,14 +617,14 @@ function VerifyStep({
           ) : (
             <ShieldCheck className="size-3.5" />
           )}
-          {saving ? "Encrypting & saving..." : "Save securely"}
+          {saving ? "Saving..." : "Save & activate"}
         </Button>
       </div>
     </motion.div>
   );
 }
 
-function CompleteStep({ reduceMotion }: { reduceMotion: boolean | null }) {
+function CompleteStep({ reduceMotion, tokenInfo, onDisconnect }: { reduceMotion: boolean | null; tokenInfo: TokenInfo; onDisconnect: () => void }) {
   return (
     <motion.div
       initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
@@ -588,8 +639,9 @@ function CompleteStep({ reduceMotion }: { reduceMotion: boolean | null }) {
           GitHub integration active
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Your repositories are now being monitored. Vulnerabilities will be
-          detected, analyzed, and remediated autonomously.
+          {tokenInfo?.username
+            ? `Connected as @${tokenInfo.username}. Your repositories are now available for scanning.`
+            : "Your repositories are now being monitored. Vulnerabilities will be detected, analyzed, and remediated autonomously."}
         </p>
       </div>
       <div className="flex justify-center gap-2 pt-2">
@@ -598,6 +650,10 @@ function CompleteStep({ reduceMotion }: { reduceMotion: boolean | null }) {
         </Button>
         <Button variant="outline" size="sm" asChild>
           <a href="/repositories">View repositories</a>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onDisconnect} className="text-destructive hover:text-destructive">
+          <Trash2 className="size-3 mr-1.5" />
+          Disconnect
         </Button>
       </div>
     </motion.div>

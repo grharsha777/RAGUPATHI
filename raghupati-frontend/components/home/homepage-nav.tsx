@@ -41,7 +41,7 @@ export function HomepageNav() {
           <Link href="/" className="flex items-center gap-2.5">
             <div className="relative size-8 overflow-hidden rounded-lg border border-border/50 bg-card shadow-sm">
               <Image
-                src="/brand/raghupati-mark.svg"
+                src="/logo.jpg"
                 alt=""
                 width={32}
                 height={32}

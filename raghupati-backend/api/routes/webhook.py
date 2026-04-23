@@ -1,8 +1,6 @@
-"""GitHub webhook ingestion."""
-
-from __future__ import annotations
-
+import asyncio
 import time
+import uuid
 from collections import defaultdict, deque
 from typing import Deque
 
@@ -10,10 +8,7 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
 
 from config.settings import get_settings
-from crew.raghupati_crew import build_raghupati_crew
-from db.incident_repo import IncidentRepository
-from db.supabase_client import get_supabase_client
-from models.incident import AgentStatus, IncidentCreate, IncidentUpdate, Severity
+from core.pipeline import run_pipeline
 from models.webhook import WebhookProcessingResult
 from tools.github_tool import parse_github_webhook_payload, verify_github_signature
 
@@ -46,7 +41,7 @@ def _rate_limited(client_ip: str) -> bool:
 
 
 async def _handle_github_event(event: str, delivery_id: str, payload: dict[str, object]) -> None:
-    """Kick off the hierarchical crew for qualifying GitHub events.
+    """Trigger the Vanar Sena pipeline for qualifying GitHub events.
 
     Args:
         event: GitHub ``X-GitHub-Event`` value.
@@ -56,39 +51,16 @@ async def _handle_github_event(event: str, delivery_id: str, payload: dict[str, 
     settings = get_settings()
     repo_obj = payload.get("repository") or {}
     repo_full_name = str(repo_obj.get("full_name") or "unknown/unknown")
-    title = f"GitHub {event} on {repo_full_name}"
-    description = f"Automated pipeline kickoff for delivery {delivery_id}."
+    run_id = str(uuid.uuid4())
     try:
-        incident_repo = IncidentRepository(get_supabase_client())
-        incident = incident_repo.create(
-            IncidentCreate(
-                repo_full_name=repo_full_name,
-                title=title,
-                description=description,
-                severity=Severity.MEDIUM,
-                payload={"github_event": event, "delivery_id": delivery_id},
-            )
+        result = await run_pipeline(
+            run_id=run_id,
+            repo_full_name=repo_full_name,
+            github_token=settings.github_token.get_secret_value(),
         )
+        logger.info("webhook_pipeline_completed", run_id=run_id, result=str(result)[:2000])
     except Exception as exc:
-        logger.exception("webhook_incident_create_failed", error=str(exc))
-        return
-    try:
-        crew = build_raghupati_crew()
-        result = crew.kickoff()
-        logger.info("crew_kickoff_completed", incident_id=str(incident.id), result=str(result)[:2000])
-        incident_repo.update(
-            incident.id,
-            IncidentUpdate(status=AgentStatus.COMPLETED, description=description + "\nCrew completed."),
-        )
-    except Exception as exc:
-        logger.exception("crew_kickoff_failed", incident_id=str(incident.id), error=str(exc))
-        try:
-            incident_repo.update(
-                incident.id,
-                IncidentUpdate(status=AgentStatus.FAILED, description=description + f"\nCrew failed: {exc}"),
-            )
-        except Exception as update_exc:
-            logger.exception("incident_update_failed_after_crew_error", error=str(update_exc))
+        logger.exception("webhook_pipeline_failed", run_id=run_id, error=str(exc))
 
 
 @router.post("/github", response_model=WebhookProcessingResult)

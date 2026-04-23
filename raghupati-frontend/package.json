@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --env-file=../.env.local node_modules/next/dist/bin/next dev",
     "build": "next build",
+    "vercel-build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",

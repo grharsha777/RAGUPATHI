@@ -30,6 +30,7 @@ export async function fetchAgentsStatus(): Promise<Record<string, unknown>> {
 }
 
 export async function fetchIncidents(): Promise<Incident[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('incidents')
     .select('*')
@@ -50,6 +51,7 @@ export async function fetchIncidents(): Promise<Incident[]> {
 }
 
 export async function fetchIncident(id: string): Promise<IncidentDetail> {
+  if (!supabase) throw new Error("Supabase client not initialized");
   const { data, error } = await supabase.from('incidents').select('*').eq('id', id).single();
   
   if (error) throw new Error(error.message);
@@ -76,24 +78,40 @@ export async function fetchIncident(id: string): Promise<IncidentDetail> {
 }
 
 export async function fetchRepositories(): Promise<Repository[]> {
-  const { data, error } = await supabase.from('repositories').select('*');
-  if (error) throw new Error(error.message);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('github_pat') : null;
+  if (!token) return [];
 
-  return data.map((item: any) => ({
-    id: item.id,
-    fullName: item.full_name,
-    defaultBranch: item.default_branch,
-    webhookStatus: item.webhook_status,
-    riskScore: item.risk_score,
-    openIssues: item.open_issues,
-    dependencyHealth: item.dependency_health,
-    ciHealth: item.ci_health,
-    branchProtection: item.branch_protection,
-    lastScanAt: item.updated_at,
-  })) as Repository[];
+  try {
+    const res = await fetch("https://api.github.com/user/repos?sort=updated&per_page=100", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch from GitHub");
+    const data = await res.json();
+
+    return data.map((repo: any) => ({
+      id: repo.id.toString(),
+      fullName: repo.full_name,
+      defaultBranch: repo.default_branch,
+      webhookStatus: "unknown" as const,
+      riskScore: 0,
+      openIssues: repo.open_issues_count,
+      dependencyHealth: "unknown" as const,
+      ciHealth: "unknown" as const,
+      branchProtection: false,
+      lastScanAt: repo.updated_at,
+    })) as Repository[];
+  } catch (err) {
+    console.error("fetchRepositories error:", err);
+    return [];
+  }
 }
 
 export async function fetchReports(): Promise<ReportArtifact[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from('reports').select('*');
   if (error) throw new Error(error.message);
 
@@ -108,6 +126,7 @@ export async function fetchReports(): Promise<ReportArtifact[]> {
 }
 
 export async function fetchAudit(): Promise<AuditEvent[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
 

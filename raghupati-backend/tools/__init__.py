@@ -1,23 +1,19 @@
-"""CrewAI tools and platform integrations for RAGHUPATI."""
+"""Platform integrations for RAGHUPATHI.
 
-from .cve_tool import NvdCveLookupTool, OsvQueryTool
-from .email_tool import SendGridEmailTool
-from .github_tool import GitHubCreatePullRequestTool, GitHubReadFileTool, parse_github_webhook_payload
-from .npm_audit_tool import NpmAuditTool
-from .ollama_tool import OllamaMultimodalTool
-from .search_tool import ExaSearchTool, TavilySearchTool
-from .slack_tool import SlackWebhookTool
+CrewAI-based tool classes are available lazily to avoid import failures
+when crewai is not installed. Direct function APIs are always available.
+"""
+
+from .github_tool import (
+    github_create_pull_request,
+    github_read_file,
+    parse_github_webhook_payload,
+    verify_github_signature,
+)
 
 __all__ = [
-    "NvdCveLookupTool",
-    "OsvQueryTool",
-    "SendGridEmailTool",
-    "GitHubCreatePullRequestTool",
-    "GitHubReadFileTool",
+    "github_create_pull_request",
+    "github_read_file",
     "parse_github_webhook_payload",
-    "NpmAuditTool",
-    "OllamaMultimodalTool",
-    "TavilySearchTool",
-    "ExaSearchTool",
-    "SlackWebhookTool",
+    "verify_github_signature",
 ]

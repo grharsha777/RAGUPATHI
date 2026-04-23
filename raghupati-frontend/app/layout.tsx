@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s · RAGHUPATI",
   },
   description: "Autonomous multi-agent DevSecOps command center.",
-  icons: [{ rel: "icon", url: "/brand/raghupati-mark.svg" }],
+  icons: [{ rel: "icon", url: "/logo.jpg" }],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

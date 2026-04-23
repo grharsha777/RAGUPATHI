@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { GitBranch, ShieldCheck } from "lucide-react";
+import { GitBranch, ShieldCheck, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,16 +18,19 @@ export default function RepositoriesPage() {
   const repos = useRepositoriesQuery();
 
   useEffect(() => {
-    const channel = supabase
-      .channel('schema-db-changes-repos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'repositories' }, (payload) => {
+    if (!supabase) return;
+
+    const channel = supabase?.channel('schema-db-changes-repos')
+      ?.on('postgres_changes', { event: '*', schema: 'public', table: 'repositories' }, (payload) => {
         // Invalidate and refetch immediately when Supabase detects a change
         queryClient.invalidateQueries({ queryKey: ["repositories"] });
       })
-      .subscribe();
+      ?.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase?.removeChannel(channel);
+      }
     };
   }, [queryClient]);
 
@@ -103,13 +107,14 @@ export default function RepositoriesPage() {
                   {repos.data?.map((repo) => (
                     <TableRow key={repo.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <Link href={`/repos/${repo.fullName}`} className="flex items-center gap-2 group">
                           <GitBranch className="size-4 text-muted-foreground" aria-hidden />
                           <div className="min-w-0">
-                            <div className="truncate font-medium">{repo.fullName}</div>
+                            <div className="truncate font-medium group-hover:text-primary transition-colors">{repo.fullName}</div>
                             <div className="truncate text-xs text-muted-foreground">{repo.defaultBranch}</div>
                           </div>
-                        </div>
+                          <ArrowRight className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <LiveStatusBadge

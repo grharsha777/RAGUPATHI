@@ -1,0 +1,7 @@
+{
+  "python.defaultInterpreterPath": "raghupati-backend\\.venv\\Scripts\\python.exe",
+  "python.analysis.extraPaths": [
+    "raghupati-backend"
+  ],
+  "css.lint.unknownAtRules": "ignore"
+}

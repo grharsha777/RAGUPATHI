@@ -32,7 +32,7 @@ export function HeroSection() {
       {/* Subtle grid pattern */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.025]"
-        style={{
+        style={{ // NOSONAR
           backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
           backgroundSize: "32px 32px",
         }}

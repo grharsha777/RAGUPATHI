@@ -12,8 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.middleware.auth import JWTAuthMiddleware
 from api.middleware.logging import RequestLoggingMiddleware
 from api.routes import agents as agents_routes
+from api.routes import events as events_routes
+from api.routes import github as github_routes
 from api.routes import health as health_routes
 from api.routes import incidents as incidents_routes
+from api.routes import scan as scan_routes
+from api.routes import scans as scans_routes
 from api.routes import webhook as webhook_routes
 from config.settings import get_settings
 
@@ -56,6 +60,10 @@ def create_app() -> FastAPI:
     app.include_router(health_routes.router)
     app.include_router(incidents_routes.router)
     app.include_router(agents_routes.router)
+    app.include_router(scan_routes.router)
+    app.include_router(scans_routes.router)
+    app.include_router(github_routes.router)
+    app.include_router(events_routes.router)
     app.include_router(webhook_routes.router)
     return app
 

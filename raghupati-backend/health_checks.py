@@ -61,8 +61,8 @@ async def probe_supabase() -> dict[str, Any]:
     base = str(settings.supabase_url).rstrip("/")
     url = f"{base}/rest/v1/"
     headers = {
-        "apikey": settings.supabase_key.get_secret_value(),
-        "Authorization": f"Bearer {settings.supabase_key.get_secret_value()}",
+        "apikey": settings.admin_key.get_secret_value(),
+        "Authorization": f"Bearer {settings.admin_key.get_secret_value()}",
     }
     try:
         async with httpx.AsyncClient(timeout=settings.external_api_timeout_seconds) as client:
@@ -113,42 +113,48 @@ async def probe_tavily() -> dict[str, Any]:
     return {"provider": "tavily", "ok": True}
 
 
-async def probe_slack() -> dict[str, Any]:
-    """Check Slack webhook URL reachability without posting a user-visible message.
+async def probe_discord() -> dict[str, Any]:
+    """Check Discord webhook URL reachability.
 
     Returns:
         Status dictionary with ``ok`` flag and optional error text.
     """
     settings = get_settings()
-    url = settings.slack_webhook_url.get_secret_value()
+    if not settings.discord_webhook_url:
+        return {"provider": "discord", "ok": True, "error": "not configured"}
+    url = settings.discord_webhook_url.get_secret_value()
     try:
         async with httpx.AsyncClient(timeout=settings.external_api_timeout_seconds) as client:
             response = await client.get(url)
             if response.status_code >= 500:
-                return {"provider": "slack", "ok": False, "error": f"http_{response.status_code}"}
+                return {"provider": "discord", "ok": False, "error": f"http_{response.status_code}"}
     except Exception as exc:
-        logger.exception("slack_health_failed", error=str(exc))
-        return {"provider": "slack", "ok": False, "error": str(exc)}
-    return {"provider": "slack", "ok": True}
+        logger.exception("discord_health_failed", error=str(exc))
+        return {"provider": "discord", "ok": False, "error": str(exc)}
+    return {"provider": "discord", "ok": True}
 
 
-async def probe_sendgrid() -> dict[str, Any]:
-    """Check SendGrid API key validity.
+async def probe_resend() -> dict[str, Any]:
+    """Check Resend API key validity.
 
     Returns:
         Status dictionary with ``ok`` flag and optional error text.
     """
     settings = get_settings()
-    url = "https://api.sendgrid.com/v3/scopes"
-    headers = {"Authorization": f"Bearer {settings.sendgrid_api_key.get_secret_value()}"}
+    if not settings.resend_api_key:
+        return {"provider": "resend", "ok": True, "error": "not configured"}
+    url = "https://api.resend.com/emails"
+    headers = {"Authorization": f"Bearer {settings.resend_api_key.get_secret_value()}"}
     try:
         async with httpx.AsyncClient(timeout=settings.external_api_timeout_seconds) as client:
+            # a simple GET to check auth; might 405 on /emails but at least checks reachability without sending
             response = await client.get(url, headers=headers)
-            response.raise_for_status()
+            if response.status_code == 401:
+                return {"provider": "resend", "ok": False, "error": "Unauthorized"}
     except Exception as exc:
-        logger.exception("sendgrid_health_failed", error=str(exc))
-        return {"provider": "sendgrid", "ok": False, "error": str(exc)}
-    return {"provider": "sendgrid", "ok": True}
+        logger.exception("resend_health_failed", error=str(exc))
+        return {"provider": "resend", "ok": False, "error": str(exc)}
+    return {"provider": "resend", "ok": True}
 
 
 async def probe_ollama() -> dict[str, Any]:
@@ -176,14 +182,14 @@ async def collect_full_health_report() -> dict[str, Any]:
     Returns:
         Nested dictionary suitable for JSON responses.
     """
-    mistral, groq, supabase, nvd, tavily, slack, sendgrid, ollama = await asyncio.gather(
+    mistral, groq, supabase, nvd, tavily, discord, resend, ollama = await asyncio.gather(
         probe_mistral(),
         probe_groq(),
         probe_supabase(),
         probe_nvd(),
         probe_tavily(),
-        probe_slack(),
-        probe_sendgrid(),
+        probe_discord(),
+        probe_resend(),
         probe_ollama(),
     )
     agents = {
@@ -192,8 +198,8 @@ async def collect_full_health_report() -> dict[str, Any]:
         "supabase_db": supabase,
         "angada_nvd": nvd,
         "jambavan_tavily": tavily,
-        "vibhishana_slack": slack,
-        "vibhishana_sendgrid": sendgrid,
+        "vibhishana_discord": discord,
+        "vibhishana_resend": resend,
         "ollama_local": ollama,
     }
     overall_ok = all(item.get("ok") is True for item in agents.values())

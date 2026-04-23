@@ -38,7 +38,7 @@ class Settings(BaseSettings):
         description="Minimum log level for structlog (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
     )
     cors_origins: str = Field(
-        default="http://localhost:3000",
+        default="http://localhost:3000,http://localhost:3001",
         description="Comma-separated list of allowed CORS origins (Next.js default included).",
     )
     max_patch_retries: int = Field(
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
         description="GitHub PAT with repo, pull request, and webhook administration scopes.",
     )
     github_webhook_secret: SecretStr = Field(
-        ...,
+        default="",
         description="Shared secret used to verify GitHub webhook HMAC-SHA256 signatures.",
     )
     github_api_base_url: HttpUrl = Field(
@@ -123,7 +123,11 @@ class Settings(BaseSettings):
     )
     supabase_key: SecretStr = Field(
         ...,
-        description="Supabase service role or anon key used by the backend.",
+        description="Supabase key (anon or publishable) used for basic queries.",
+    )
+    supabase_service_role_key: SecretStr | None = Field(
+        default=None,
+        description="Supabase service role key for admin-level REST API calls. Falls back to supabase_key if not set.",
     )
 
     # --- Notifications ---
@@ -131,16 +135,20 @@ class Settings(BaseSettings):
         default=None,
         description="Slack incoming webhook URL for Vibhishana alerts.",
     )
-    sendgrid_api_key: SecretStr | None = Field(
+    discord_webhook_url: SecretStr | None = Field(
         default=None,
-        description="SendGrid API key for HTML incident emails.",
+        description="Discord webhook URL for security alerts.",
     )
-    sendgrid_from_email: str = Field(
-        default="noreply@example.com",
-        description="Verified SendGrid sender address.",
+    resend_api_key: SecretStr | None = Field(
+        default=None,
+        description="Resend API key for HTML incident emails.",
     )
-    sendgrid_from_name: str = Field(
-        default="RAGHUPATI Guardian",
+    resend_from_email: str = Field(
+        default="onboarding@resend.dev",
+        description="Verified Resend sender address.",
+    )
+    resend_from_name: str = Field(
+        default="RAGHUPATHI Guardian",
         description="Friendly sender name for outbound email.",
     )
     incident_email_to: str | None = Field(
@@ -150,7 +158,8 @@ class Settings(BaseSettings):
 
     # --- Auth (API / NextAuth) ---
     google_client_id: str = Field(
-        ...,
+        default="",
+        validation_alias=AliasChoices("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID", "google_client_id"),
         description="Google OAuth client ID used to validate Google-issued ID tokens.",
     )
     nextauth_secret: SecretStr | None = Field(
@@ -204,6 +213,26 @@ class Settings(BaseSettings):
         default="llama-4-scout-17b-16e-instruct",
         description="Groq model id for Sugreeva (QA).",
     )
+    model_lakshmana: str = Field(
+        default="mistral-medium-latest",
+        description="Mistral model id for Lakshmana (codebase mapper).",
+    )
+    model_sita: str = Field(
+        default="mixtral-8x7b-32768",
+        description="Groq model id for Sita (security analyst).",
+    )
+    model_bharata: str = Field(
+        default="mistral-medium-latest",
+        description="Mistral model id for Bharata (refactor).",
+    )
+    model_shatrughna: str = Field(
+        default="llama-4-scout-17b-16e-instruct",
+        description="Groq model id for Shatrughna (deploy readiness).",
+    )
+    model_dasharatha: str = Field(
+        default="llama-4-scout-17b-16e-instruct",
+        description="Groq model id for Dasharatha (GitHub sync).",
+    )
     model_vibhishana: str = Field(
         default="llama3-8b-8192",
         description="Groq model id for Vibhishana (comms).",
@@ -254,6 +283,13 @@ class Settings(BaseSettings):
             return []
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
+    @property
+    def admin_key(self) -> SecretStr:
+        """Return the service role key if available, else fall back to supabase_key."""
+        if self.supabase_service_role_key:
+            return self.supabase_service_role_key
+        return self.supabase_key
+
     def safe_public_dict(self) -> dict[str, Any]:
         """Return non-secret configuration for diagnostics (health/debug only).
 
@@ -272,10 +308,15 @@ class Settings(BaseSettings):
             "models": {
                 "rama": self.model_rama,
                 "hanuman": self.model_hanuman,
+                "lakshmana": self.model_lakshmana,
+                "sita": self.model_sita,
                 "angada": self.model_angada,
                 "jambavan": self.model_jambavan,
                 "nala": self.model_nala,
                 "sugreeva": self.model_sugreeva,
+                "bharata": self.model_bharata,
+                "shatrughna": self.model_shatrughna,
+                "dasharatha": self.model_dasharatha,
                 "vibhishana": self.model_vibhishana,
             },
         }

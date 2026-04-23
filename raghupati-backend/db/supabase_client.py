@@ -31,7 +31,7 @@ class SupabaseClientFactory:
         """
         try:
             url = str(settings.supabase_url).rstrip("/")
-            key = settings.supabase_key.get_secret_value()
+            key = settings.admin_key.get_secret_value()
             client = create_client(url, key)
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("supabase_client_create_failed", error=str(exc))

@@ -30,7 +30,7 @@ export function ScrollReveal({
   duration = 0.6,
   className,
   once = true,
-  amount = 0.2,
+  amount = 0, // Changed from 0.2 to 0 so it triggers immediately when any part is visible
 }: ScrollRevealProps) {
   const reduceMotion = useReducedMotion();
   const offset = offsets[direction];
@@ -77,7 +77,7 @@ export function StaggerContainer({
     <motion.div
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.15 }}
+      viewport={{ once: true, amount: 0 }}
       variants={{
         hidden: {},
         visible: { transition: { staggerChildren: staggerDelay } },

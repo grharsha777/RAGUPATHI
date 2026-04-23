@@ -82,7 +82,7 @@ function LoginFormContent() {
           <div className="flex items-center gap-3">
             <div className="relative size-10 overflow-hidden rounded-lg border border-border/60 bg-card shadow-surface-1">
               <Image
-                src="/brand/raghupati-mark.svg"
+                src="/logo.jpg"
                 alt=""
                 width={40}
                 height={40}

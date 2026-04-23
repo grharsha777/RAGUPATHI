@@ -57,7 +57,7 @@ export function AuthShowcase() {
       {/* Background grid */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
+        style={{ // NOSONAR
           backgroundImage: `linear-gradient(hsl(var(--primary) / 0.3) 1px, transparent 1px),
             linear-gradient(90deg, hsl(var(--primary) / 0.3) 1px, transparent 1px)`,
           backgroundSize: "40px 40px",

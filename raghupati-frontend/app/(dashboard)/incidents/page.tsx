@@ -19,16 +19,19 @@ export default function IncidentsPage() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, (payload) => {
+    if (!supabase) return;
+
+    const channel = supabase?.channel('schema-db-changes')
+      ?.on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, (payload) => {
         // Invalidate and refetch immediately when Supabase detects a change
         queryClient.invalidateQueries({ queryKey: ["incidents"] });
       })
-      .subscribe();
+      ?.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase?.removeChannel(channel);
+      }
     };
   }, [queryClient]);
 

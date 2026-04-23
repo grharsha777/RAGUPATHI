@@ -2,13 +2,21 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
-import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { useState, useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { initializeTheme } from "@/lib/store/theme-store";
 
 type AppProvidersProps = {
   children: ReactNode;
 };
+
+function CustomThemeInit() {
+  useEffect(() => {
+    initializeTheme();
+  }, []);
+  return null;
+}
 
 export function AppProviders({ children }: AppProvidersProps) {
   const [queryClient] = useState(
@@ -27,10 +35,11 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <NextThemesProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <CustomThemeInit />
           {children}
           <Toaster richColors closeButton position="top-right" />
-        </ThemeProvider>
+        </NextThemesProvider>
       </QueryClientProvider>
     </SessionProvider>
   );

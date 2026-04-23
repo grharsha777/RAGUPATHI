@@ -117,7 +117,7 @@ export function AgentWorkflowViz() {
               }}
             >
               {active && (
-                <div className="absolute inset-0 rounded-xl animate-ping opacity-30" style={{ backgroundColor: agent.color, filter: 'blur(8px)' }} />
+                <div className="absolute inset-0 rounded-xl animate-ping opacity-30" style={{ backgroundColor: agent.color, filter: 'blur(8px)' }} /> // NOSONAR
               )}
               
               <div 

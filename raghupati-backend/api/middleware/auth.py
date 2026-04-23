@@ -139,8 +139,12 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         Returns:
             HTTP response.
         """
+        settings = get_settings()
         path = request.url.path
         if request.method == "OPTIONS":
+            return await call_next(request)
+        # Dev-mode bypass — skip auth for all routes during local development
+        if settings.environment == "development":
             return await call_next(request)
         if path.startswith("/health") or path.startswith("/webhook") or path in {"/docs", "/openapi.json", "/redoc"}:
             return await call_next(request)

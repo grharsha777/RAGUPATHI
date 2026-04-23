@@ -29,9 +29,11 @@ export function TopCommandBar() {
           <div className="relative hidden min-w-[240px] flex-1 md:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              readOnly
               aria-label="Global search"
-              placeholder="Search incidents, repos, trace IDs…"
-              className="h-9 pl-9"
+              placeholder="Search incidents, repos, trace IDs… (Press ⌘K)"
+              className="h-9 pl-9 cursor-text"
+              onClick={() => setCommandOpen(true)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
                   event.preventDefault();
