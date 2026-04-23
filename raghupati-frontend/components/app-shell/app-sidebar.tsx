@@ -104,7 +104,7 @@ export function AppSidebar() {
         {/* Brand header */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.04]">
           <div className="relative size-10 overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] flex items-center justify-center p-1">
-            <img src="/logo.png" alt="Raghupati Logo" className="w-full h-full object-contain" />
+            <Image src="/logo.png" alt="Raghupati Logo" width={32} height={32} className="w-full h-full object-contain" />
           </div>
           {!sidebarCollapsed ? (
             <div className="min-w-0 flex-1">

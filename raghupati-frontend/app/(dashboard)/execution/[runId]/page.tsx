@@ -63,7 +63,7 @@ export default function ExecutionPage() {
     setFullscreen(true);
     addLog({ level: "info", source: "system", message: `Execution environment initialized for run ${runId?.slice(0, 8)}` });
     return () => { setFullscreen(false); };
-  }, []);
+  }, [addLog, runId, setFullscreen]);
 
   // Detect when manual approval is needed (Dasharatha completes without pushing)
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function ExecutionPage() {
       useExecutionStore.getState().setPendingApproval(true, "push");
       addLog({ level: "warn", source: "system", message: "Manual approval required: patches are ready but not pushed. Review patches and approve." });
     }
-  }, [agents, executionMode, pendingApproval]);
+  }, [agents, executionMode, pendingApproval, addLog]);
 
   const activeAgents = useMemo(() => agents.filter((a) => a.status === "running"), [agents]);
   const completedAgents = useMemo(() => agents.filter((a) => a.status === "complete"), [agents]);

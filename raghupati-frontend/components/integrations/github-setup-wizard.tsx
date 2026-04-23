@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
 import {
   AlertTriangle,
   ArrowRight,
@@ -548,7 +549,7 @@ function TokenStatusIndicator({ status, tokenInfo }: { status: TokenStatus; toke
       </div>
       {status === "valid" && tokenInfo?.avatar && (
         <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-          <img src={tokenInfo.avatar} alt="" className="size-8 rounded-full border" />
+          <Image src={tokenInfo.avatar} alt="" width={32} height={32} className="size-8 rounded-full border" />
           <div>
             <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">@{tokenInfo.username}</div>
             <div className="text-[10px] text-muted-foreground">

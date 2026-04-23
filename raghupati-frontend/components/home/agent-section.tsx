@@ -158,7 +158,7 @@ export function AgentSection() {
                       <motion.div
                         initial={reduceMotion ? false : { scale: 0 }}
                         whileInView={{ scale: 1 }}
-                        viewport={{ once: true }}
+                        viewport={{ once: true, amount: 0 }}
                         transition={{ duration: 0.3, delay: 0.2 + i * 0.05 }}
                         className="relative z-10 flex size-8 items-center justify-center rounded-full border border-border bg-card shadow-sm"
                       >

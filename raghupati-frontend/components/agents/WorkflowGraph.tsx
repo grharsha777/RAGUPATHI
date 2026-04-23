@@ -121,7 +121,7 @@ export function WorkflowGraph({ runId, agents = [] }: WorkflowGraphProps) {
                 onClick={() => setSelectedAgent(selectedAgent === name ? null : name)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors text-left"
               >
-                <div className="flex size-9 items-center justify-center rounded-lg" style={{ backgroundColor: `${node.color}15`, border: `1px solid ${node.color}30` }}> // NOSONAR
+                <div className="flex size-9 items-center justify-center rounded-lg" style={{ backgroundColor: `${node.color}15`, border: `1px solid ${node.color}30` }}>
                   <Icon className="size-4" style={{ color: node.color }} />
                 </div>
                 <div className="flex-1 min-w-0">

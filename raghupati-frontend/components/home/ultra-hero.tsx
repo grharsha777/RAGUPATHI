@@ -74,7 +74,7 @@ function WorkflowDemo() {
   const [playing, setPlaying] = useState(true);
   const reduceMotion = useReducedMotion();
 
-  const agentSequence = [
+  const agentSequence = useMemo(() => [
     { id: "hanuman", label: "Hanuman", role: "Watcher · Repo Analysis", color: "border-blue-500/30" },
     { id: "rama", label: "Rama", role: "Commander · Severity Classification", color: "border-violet-500/30" },
     { id: "lakshmana", label: "Lakshmana", role: "Mapper · Codebase Structure", color: "border-cyan-500/30" },
@@ -86,7 +86,7 @@ function WorkflowDemo() {
     { id: "shatrughna", label: "Shatrughna", role: "Deploy · Readiness Check", color: "border-orange-500/30" },
     { id: "dasharatha", label: "Dasharatha", role: "GitHub · Push & PR", color: "border-pink-500/30" },
     { id: "vibhishana", label: "Vibhishana", role: "Comms · Notifications", color: "border-sky-500/30" },
-  ];
+  ], []);
 
   const initialNodes: Node<AgentNodeData>[] = useMemo(() => [
     { id: "hanuman", position: { x: 200, y: 0 }, data: { ...agentSequence[0], icon: "", status: "idle" }, type: "agentNode" },
@@ -100,7 +100,7 @@ function WorkflowDemo() {
     { id: "shatrughna", position: { x: 400, y: 450 }, data: { ...agentSequence[8], icon: "", status: "idle" }, type: "agentNode" },
     { id: "dasharatha", position: { x: 200, y: 540 }, data: { ...agentSequence[9], icon: "", status: "idle" }, type: "agentNode" },
     { id: "vibhishana", position: { x: 200, y: 630 }, data: { ...agentSequence[10], icon: "", status: "idle" }, type: "agentNode" },
-  ], []);
+  ], [agentSequence]);
 
   const initialEdges: Edge[] = useMemo(() => [
     { id: "e1", source: "hanuman", target: "rama", animated: true, style: { stroke: "#6366f1", strokeWidth: 1.5 } },
@@ -147,7 +147,7 @@ function WorkflowDemo() {
         };
       })
     );
-  }, [step, agentSequence.length, setNodes]);
+  }, [step, agentSequence, setNodes]);
 
   return (
     <div className="relative h-[520px] w-full rounded-2xl border border-white/[0.06] bg-[#08080f] overflow-hidden">
@@ -249,8 +249,8 @@ export function UltraHero() {
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[#050508]" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-500/[0.07] rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/[0.07] rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} /> // NOSONAR
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-emerald-500/[0.05] rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "2s" }} /> // NOSONAR
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/[0.07] rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-emerald-500/[0.05] rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
 
       {/* Grid pattern */}
@@ -369,7 +369,7 @@ export function UltraHero() {
           <motion.div
             initial={reduceMotion ? false : { opacity: 0 }}
             whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0 }}
             className="text-center mb-10"
           >
             <h2 className="text-2xl font-bold text-white mb-2">Enterprise Tech Stack</h2>
@@ -383,7 +383,7 @@ export function UltraHero() {
                   key={tech.name}
                   initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
+                  viewport={{ once: true, amount: 0 }}
                   transition={{ delay: i * 0.04 }}
                   className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all group"
                 >
@@ -402,7 +402,7 @@ export function UltraHero() {
           <motion.div
             initial={reduceMotion ? false : { opacity: 0 }}
             whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0 }}
             className="text-center mb-10"
           >
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-1 text-xs font-medium text-emerald-300">
@@ -418,7 +418,7 @@ export function UltraHero() {
                 key={agent.id}
                 initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: true, amount: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className={`rounded-xl border ${agent.border} bg-gradient-to-br ${agent.color} p-5 hover:scale-[1.02] transition-transform cursor-default`}
               >
@@ -444,7 +444,7 @@ export function UltraHero() {
           <motion.div
             initial={reduceMotion ? false : { opacity: 0 }}
             whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0 }}
           >
             <p className="text-sm text-zinc-500">
               Crafted with precision by{" "}

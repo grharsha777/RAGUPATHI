@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import {
   Shield,
   Key,
@@ -62,7 +63,7 @@ export default function SettingsPage() {
       setGithubToken(savedToken);
       verifyGithubToken(savedToken);
     }
-  }, []);
+  }, [verifyGithubToken]);
 
   // Notification config state
   const [notifConfig, setNotifConfig] = useState<NotificationConfig>({
@@ -105,7 +106,7 @@ export default function SettingsPage() {
   }, [checkHealth]);
 
   // ── GitHub Token Verification ────────────────────────────────
-  const verifyGithubToken = async (tokenToVerify?: string) => {
+  const verifyGithubToken = useCallback(async (tokenToVerify?: string) => {
     const token = typeof tokenToVerify === "string" ? tokenToVerify : githubToken;
     if (!token || token.length < 10) return;
 
@@ -154,7 +155,7 @@ export default function SettingsPage() {
         error: `Network error: ${err.message}`,
       });
     }
-  };
+  }, [githubToken]);
 
   const saveGithubToken = async () => {
     if (tokenVerification.status !== "verified") return;
@@ -329,7 +330,7 @@ export default function SettingsPage() {
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 {tokenVerification.avatar && (
-                  <img src={tokenVerification.avatar} alt="" className="size-10 rounded-full border" />
+                  <Image src={tokenVerification.avatar} alt="" width={40} height={40} className="size-10 rounded-full border" />
                 )}
                 <div>
                   <div className="font-semibold text-sm text-emerald-700 dark:text-emerald-400">

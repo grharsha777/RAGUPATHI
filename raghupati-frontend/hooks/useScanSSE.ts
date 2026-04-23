@@ -244,7 +244,7 @@ export function useScanSSE(runId: string | null) {
         connect();
       }, 3000);
     };
-  }, [runId, setSseConnected, addLog, addGitHubEvent, setScanStage, setScanStageProgress, updateAgent, setScanRun]);
+  }, [runId, setSseConnected, addLog, addGitHubEvent, setScanStage, setScanStageProgress, updateAgent, setScanRun, fetchScanDetail]);
 
   const fetchScanDetail = useCallback(async (id: string) => {
     try {

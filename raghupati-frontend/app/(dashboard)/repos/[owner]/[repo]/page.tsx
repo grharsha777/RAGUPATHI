@@ -7,6 +7,7 @@ import {
   Shield, ShieldCheck, Play, Loader2, CheckCircle2, ExternalLink,
   Zap, Eye,
 } from "lucide-react";
+import Image from "next/image";
 import { VanarSenaPipeline } from "@/components/agents/VanarSenaPipeline";
 
 type RepoMeta = {
@@ -191,7 +192,7 @@ export default function RepoAnalysisPage() {
       ) : repoMeta ? (
         <div className="rounded-xl border bg-card p-5">
           <div className="flex items-center gap-3 mb-3">
-            <img src={repoMeta.owner.avatar_url} alt="" className="size-10 rounded-full border" />
+            <Image src={repoMeta.owner.avatar_url} alt="" width={40} height={40} className="size-10 rounded-full border" />
             <div>
               <a href={repoMeta.html_url} target="_blank" rel="noopener noreferrer"
                  className="text-lg font-semibold hover:underline flex items-center gap-1.5">

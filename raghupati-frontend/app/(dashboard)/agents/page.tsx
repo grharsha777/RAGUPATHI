@@ -26,6 +26,7 @@ import { AgentDetailSheet } from "@/components/agents/agent-detail-sheet";
 import { LiveStatusBadge } from "@/components/shared/live-status-badge";
 
 // ── Agent detail data for the detail sheet ──
+// ── Agent detail data for the detail sheet ──
 const AGENT_DETAILS: Record<string, {
   description: string;
   capabilities: string[];
@@ -88,6 +89,34 @@ const AGENT_DETAILS: Record<string, {
   },
 };
 
+const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
+  hanuman: { x: 200, y: 0 },
+  rama: { x: 200, y: 100 },
+  lakshmana: { x: 0, y: 200 },
+  sita: { x: 200, y: 200 },
+  jambavan: { x: 400, y: 200 },
+  nala: { x: 200, y: 300 },
+  sugreeva: { x: 200, y: 400 },
+  bharata: { x: 0, y: 500 },
+  shatrughna: { x: 400, y: 500 },
+  dasharatha: { x: 200, y: 600 },
+  vibhishana: { x: 200, y: 700 },
+};
+
+const AGENT_COLORS: Record<string, string> = {
+  hanuman: "border-blue-500/20",
+  rama: "border-violet-500/20",
+  lakshmana: "border-cyan-500/20",
+  sita: "border-amber-500/20",
+  jambavan: "border-indigo-500/20",
+  nala: "border-emerald-500/20",
+  sugreeva: "border-rose-500/20",
+  bharata: "border-teal-500/20",
+  shatrughna: "border-orange-500/20",
+  dasharatha: "border-pink-500/20",
+  vibhishana: "border-sky-500/20",
+};
+
 // ── ReactFlow custom node ──
 type AgentNodeData = {
   label: string;
@@ -147,38 +176,9 @@ export default function AgentsPage() {
     // In production, this would update the backend settings
   }, []);
 
-  // Build ReactFlow nodes from live agent data
-  const agentPositions: Record<string, { x: number; y: number }> = {
-    hanuman: { x: 200, y: 0 },
-    rama: { x: 200, y: 100 },
-    lakshmana: { x: 0, y: 200 },
-    sita: { x: 200, y: 200 },
-    jambavan: { x: 400, y: 200 },
-    nala: { x: 200, y: 300 },
-    sugreeva: { x: 200, y: 400 },
-    bharata: { x: 0, y: 500 },
-    shatrughna: { x: 400, y: 500 },
-    dasharatha: { x: 200, y: 600 },
-    vibhishana: { x: 200, y: 700 },
-  };
-
-  const agentColors: Record<string, string> = {
-    hanuman: "border-blue-500/20",
-    rama: "border-violet-500/20",
-    lakshmana: "border-cyan-500/20",
-    sita: "border-amber-500/20",
-    jambavan: "border-indigo-500/20",
-    nala: "border-emerald-500/20",
-    sugreeva: "border-rose-500/20",
-    bharata: "border-teal-500/20",
-    shatrughna: "border-orange-500/20",
-    dasharatha: "border-pink-500/20",
-    vibhishana: "border-sky-500/20",
-  };
-
   const flowNodes: Node<AgentNodeData>[] = useMemo(() =>
     agents.map((agent) => {
-      const pos = agentPositions[agent.id] || { x: 100, y: 100 };
+      const pos = AGENT_POSITIONS[agent.id] || { x: 100, y: 100 };
       return {
         id: agent.id,
         position: pos,
@@ -186,7 +186,7 @@ export default function AgentsPage() {
           label: agent.displayName,
           role: agent.role,
           status: agent.status,
-          color: agentColors[agent.id] || "border-zinc-500/20",
+          color: AGENT_COLORS[agent.id] || "border-zinc-500/20",
           onClick: () => handleAgentClick(agent.id),
         },
         type: "agentFlowNode",
