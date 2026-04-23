@@ -69,7 +69,6 @@ export function GitHubSetupWizard() {
       // Verify existing token in background
       verifyTokenSilent(existingToken);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const verifyTokenSilent = async (t: string) => {

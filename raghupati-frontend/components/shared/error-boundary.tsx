@@ -97,7 +97,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something went wrong
               </h1>
               <p className="text-sm text-zinc-400 text-center mb-6">
-                An unexpected error occurred. We've logged the issue and will look into it.
+                An unexpected error occurred. We&apos;ve logged the issue and will look into it.
               </p>
 
               {/* Error Details (Development Mode) */}
